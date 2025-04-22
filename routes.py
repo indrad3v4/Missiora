@@ -18,74 +18,22 @@ def index():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
+    # Redirect to metamask login page for registration
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
-        
-    if request.method == 'POST':
-        username = request.form.get('username')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        confirm_password = request.form.get('confirm_password')
-        
-        # Validate data
-        if not username or not email or not password or not confirm_password:
-            flash('All fields are required', 'danger')
-            return render_template('register.html')
-            
-        if password != confirm_password:
-            flash('Passwords do not match', 'danger')
-            return render_template('register.html')
-            
-        # Check if username or email already exists
-        if User.query.filter_by(username=username).first():
-            flash('Username already exists', 'danger')
-            return render_template('register.html')
-            
-        if User.query.filter_by(email=email).first():
-            flash('Email already exists', 'danger')
-            return render_template('register.html')
-            
-        # Create new user
-        new_user = User(username=username, email=email)
-        new_user.set_password(password)
-        
-        try:
-            db.session.add(new_user)
-            db.session.commit()
-            flash('Registration successful! Please log in.', 'success')
-            return redirect(url_for('login'))
-        except Exception as e:
-            db.session.rollback()
-            logging.error(f"Error during registration: {e}")
-            flash('An error occurred during registration', 'danger')
-            
-    return render_template('register.html')
+    
+    # Redirect all registration attempts to MetaMask login
+    flash('Please use MetaMask to create an account', 'info')
+    return redirect(url_for('metamask_login_page'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    # Redirect to metamask login page
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
-        
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        remember = 'remember' in request.form
-        
-        if not username or not password:
-            flash('Username and password are required', 'danger')
-            return render_template('login.html')
-        
-        user = User.query.filter_by(username=username).first()
-        
-        if user and user.check_password(password):
-            login_user(user, remember=remember)
-            next_page = request.args.get('next')
-            return redirect(next_page or url_for('dashboard'))
-        else:
-            flash('Invalid username or password', 'danger')
     
-    # Add link to MetaMask login page in the template
-    return render_template('login.html')
+    # Redirect all login attempts to MetaMask login
+    return redirect(url_for('metamask_login_page'))
 
 @app.route('/metamask', methods=['GET'])
 def metamask_login_page():

@@ -7,17 +7,17 @@
             <div class="card shadow-sm border-0">
                 <div class="card-body p-4 p-md-5">
                     <div class="text-center mb-4">
-                        <h2 class="fw-bold">Connect with MetaMask</h2>
-                        <p class="text-muted">Sign in using your MetaMask wallet to continue your journey towards a unified business self</p>
+                        <h2 class="fw-bold">Sign in with MetaMask</h2>
+                        <p class="text-muted">Use your Ethereum wallet to securely access your account</p>
                     </div>
                     
                     <div class="text-center mb-4">
-                        <img src="{{ url_for('static', filename='images/metamask-fox.svg') }}" alt="MetaMask Logo" height="80" class="mb-3">
+                        <img src="{{ url_for('static', filename='images/metamask-fox.svg') }}" alt="MetaMask Logo" height="100" class="mb-3">
                     </div>
                     
                     <div class="d-grid mb-4">
                         <button id="connectMetaMaskBtn" class="btn btn-primary btn-lg">
-                            <i class="fas fa-wallet me-2"></i>Connect MetaMask
+                            <i class="fas fa-wallet me-2"></i>Connect with MetaMask
                         </button>
                     </div>
                     
@@ -34,8 +34,14 @@
                         <p class="mb-0">Don't have MetaMask? <a href="https://metamask.io/download/" target="_blank" class="text-decoration-none">Download it here</a></p>
                     </div>
                     
-                    <div class="text-center mt-3">
-                        <p class="mb-0">Prefer traditional login? <a href="{{ url_for('login') }}" class="text-decoration-none">Sign in with username</a></p>
+                    <div class="alert alert-light mt-4">
+                        <h5 class="fw-bold">Why use MetaMask?</h5>
+                        <ul class="mb-0 text-start">
+                            <li>Secure blockchain-based authentication</li>
+                            <li>No passwords to remember or reset</li>
+                            <li>Full control over your digital identity</li>
+                            <li>Access to Web3 features</li>
+                        </ul>
                     </div>
                 </div>
             </div>
