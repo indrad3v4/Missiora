@@ -1,0 +1,219 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="fw-bold">Welcome, {{ current_user.first_name or current_user.username }}</h1>
+            <p class="lead text-muted">Your unified business self dashboard</p>
+        </div>
+        <div class="col-md-4 text-md-end d-flex justify-content-md-end align-items-center">
+            <a href="{{ url_for('chat') }}" class="btn btn-primary">
+                <i class="fas fa-comments me-2"></i>Start a Conversation
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Welcome Card for New Users -->
+        {% if not current_user.first_name and not current_user.business_name %}
+        <div class="col-12 mb-4">
+            <div class="card border-0 shadow-sm bg-primary text-white">
+                <div class="card-body p-4">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-star fa-3x"></i>
+                        </div>
+                        <div>
+                            <h3 class="fw-bold mb-2">Complete Your Profile</h3>
+                            <p class="mb-2">Help us understand who you are so we can better assist in unifying your personal and professional self.</p>
+                            <a href="{{ url_for('profile') }}" class="btn btn-light">Complete Profile</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Recent Conversations -->
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0">Recent Conversations</h5>
+                        <a href="{{ url_for('chat') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_conversations %}
+                        <ul class="list-group list-group-flush">
+                            {% for conversation in recent_conversations %}
+                                <li class="list-group-item px-4 py-3">
+                                    <a href="{{ url_for('chat', id=conversation.id) }}" class="text-decoration-none text-dark">
+                                        <div class="d-flex align-items-center">
+                                            <div class="conversation-icon bg-light rounded-circle me-3">
+                                                <i class="fas fa-comments text-primary"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-1 fw-semibold">{{ conversation.title }}</h6>
+                                                <p class="text-muted small mb-0">{{ conversation.updated_at.strftime('%B %d, %Y at %I:%M %p') }}</p>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="text-center p-4">
+                            <div class="empty-state-icon mb-3">
+                                <i class="fas fa-comments fa-3x text-muted"></i>
+                            </div>
+                            <h5 class="fw-semibold">No conversations yet</h5>
+                            <p class="text-muted mb-3">Start a conversation with your AI assistant to begin your journey.</p>
+                            <a href="{{ url_for('chat') }}" class="btn btn-primary">Start Conversation</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Insights Card -->
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0">Your Insights</h5>
+                        <a href="{{ url_for('insights') }}" class="btn btn-sm btn-outline-primary">View All</a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if insights %}
+                        <div class="list-group list-group-flush">
+                            {% for insight in insights %}
+                                <div class="list-group-item px-4 py-3">
+                                    <p class="mb-1 fw-semibold">{{ insight.content }}</p>
+                                    <p class="text-muted small mb-0">{{ insight.created_at.strftime('%B %d, %Y') }}</p>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center p-4">
+                            <div class="empty-state-icon mb-3">
+                                <i class="fas fa-lightbulb fa-3x text-muted"></i>
+                            </div>
+                            <h5 class="fw-semibold">No insights yet</h5>
+                            <p class="text-muted mb-3">As you continue conversations, valuable insights about your unified business self will appear here.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Goals Card -->
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-0 py-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="fw-bold mb-0">Your Goals</h5>
+                        <a href="{{ url_for('goals') }}" class="btn btn-sm btn-outline-primary">Manage Goals</a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if goals %}
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th scope="col" width="50" class="ps-4">Status</th>
+                                        <th scope="col">Goal</th>
+                                        <th scope="col" class="d-none d-md-table-cell">Created</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for goal in goals %}
+                                        <tr>
+                                            <td class="ps-4">
+                                                <div class="form-check">
+                                                    <input class="form-check-input goal-toggle" type="checkbox" {% if goal.completed %}checked{% endif %} data-goal-id="{{ goal.id }}">
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <span class="fw-semibold {% if goal.completed %}text-decoration-line-through text-muted{% endif %}">{{ goal.title }}</span>
+                                                {% if goal.description %}
+                                                    <p class="text-muted small mb-0 {% if goal.completed %}text-decoration-line-through{% endif %}">{{ goal.description }}</p>
+                                                {% endif %}
+                                            </td>
+                                            <td class="d-none d-md-table-cell">
+                                                <span class="text-muted small">{{ goal.created_at.strftime('%B %d, %Y') }}</span>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center p-4">
+                            <div class="empty-state-icon mb-3">
+                                <i class="fas fa-flag fa-3x text-muted"></i>
+                            </div>
+                            <h5 class="fw-semibold">No goals set</h5>
+                            <p class="text-muted mb-3">Set goals to track your progress towards a unified business self.</p>
+                            <a href="{{ url_for('goals') }}" class="btn btn-primary">Add Goals</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Goal toggle functionality
+    const goalToggles = document.querySelectorAll('.goal-toggle');
+    goalToggles.forEach(toggle => {
+        toggle.addEventListener('change', function() {
+            const goalId = this.getAttribute('data-goal-id');
+            
+            fetch(`/api/goals/${goalId}/toggle`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Update UI based on the completed status
+                const row = this.closest('tr');
+                const title = row.querySelector('.fw-semibold');
+                const description = row.querySelector('.small.mb-0');
+                
+                if (data.completed) {
+                    title.classList.add('text-decoration-line-through', 'text-muted');
+                    if (description) {
+                        description.classList.add('text-decoration-line-through');
+                    }
+                } else {
+                    title.classList.remove('text-decoration-line-through', 'text-muted');
+                    if (description) {
+                        description.classList.remove('text-decoration-line-through');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error toggling goal:', error);
+                // Revert the checkbox state on error
+                this.checked = !this.checked;
+            });
+        });
+    });
+});
+</script>
+{% endblock %}

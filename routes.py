@@ -1,0 +1,301 @@
+import logging
+from flask import render_template, redirect, url_for, request, flash, jsonify, session
+from flask_login import login_user, logout_user, login_required, current_user
+import os
+from app import app, db
+from models import User, Conversation, Message, UserGoal, UserInsight
+from agent_service import get_agent_response
+from werkzeug.security import generate_password_hash
+import json
+
+@app.route('/')
+def index():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    return render_template('index.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+        
+    if request.method == 'POST':
+        username = request.form.get('username')
+        email = request.form.get('email')
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        
+        # Validate data
+        if not username or not email or not password or not confirm_password:
+            flash('All fields are required', 'danger')
+            return render_template('register.html')
+            
+        if password != confirm_password:
+            flash('Passwords do not match', 'danger')
+            return render_template('register.html')
+            
+        # Check if username or email already exists
+        if User.query.filter_by(username=username).first():
+            flash('Username already exists', 'danger')
+            return render_template('register.html')
+            
+        if User.query.filter_by(email=email).first():
+            flash('Email already exists', 'danger')
+            return render_template('register.html')
+            
+        # Create new user
+        new_user = User(username=username, email=email)
+        new_user.set_password(password)
+        
+        try:
+            db.session.add(new_user)
+            db.session.commit()
+            flash('Registration successful! Please log in.', 'success')
+            return redirect(url_for('login'))
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error during registration: {e}")
+            flash('An error occurred during registration', 'danger')
+            
+    return render_template('register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+        
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        remember = 'remember' in request.form
+        
+        if not username or not password:
+            flash('Username and password are required', 'danger')
+            return render_template('login.html')
+        
+        user = User.query.filter_by(username=username).first()
+        
+        if user and user.check_password(password):
+            login_user(user, remember=remember)
+            next_page = request.args.get('next')
+            return redirect(next_page or url_for('dashboard'))
+        else:
+            flash('Invalid username or password', 'danger')
+            
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    # Get user's recent conversations
+    recent_conversations = Conversation.query.filter_by(user_id=current_user.id).order_by(Conversation.updated_at.desc()).limit(5).all()
+    # Get user's goals
+    goals = UserGoal.query.filter_by(user_id=current_user.id).all()
+    # Get user's insights
+    insights = UserInsight.query.filter_by(user_id=current_user.id).order_by(UserInsight.created_at.desc()).limit(5).all()
+    
+    return render_template('dashboard.html', 
+                          recent_conversations=recent_conversations,
+                          goals=goals,
+                          insights=insights)
+
+@app.route('/chat', methods=['GET'])
+@login_required
+def chat():
+    conversation_id = request.args.get('id')
+    if conversation_id:
+        conversation = Conversation.query.filter_by(id=conversation_id, user_id=current_user.id).first_or_404()
+        messages = Message.query.filter_by(conversation_id=conversation.id).order_by(Message.created_at).all()
+    else:
+        conversation = None
+        messages = []
+    
+    all_conversations = Conversation.query.filter_by(user_id=current_user.id).order_by(Conversation.updated_at.desc()).all()
+    return render_template('chat.html', conversation=conversation, messages=messages, all_conversations=all_conversations)
+
+@app.route('/api/conversations', methods=['GET'])
+@login_required
+def get_conversations():
+    conversations = Conversation.query.filter_by(user_id=current_user.id).order_by(Conversation.updated_at.desc()).all()
+    return jsonify([{
+        'id': conv.id,
+        'title': conv.title,
+        'created_at': conv.created_at.isoformat(),
+        'updated_at': conv.updated_at.isoformat()
+    } for conv in conversations])
+
+@app.route('/api/conversations', methods=['POST'])
+@login_required
+def create_conversation():
+    # Create a new conversation
+    conversation = Conversation(user_id=current_user.id)
+    db.session.add(conversation)
+    db.session.commit()
+    
+    return jsonify({
+        'id': conversation.id,
+        'title': conversation.title,
+        'created_at': conversation.created_at.isoformat(),
+        'updated_at': conversation.updated_at.isoformat()
+    }), 201
+
+@app.route('/api/conversations/<int:conversation_id>', methods=['DELETE'])
+@login_required
+def delete_conversation(conversation_id):
+    conversation = Conversation.query.filter_by(id=conversation_id, user_id=current_user.id).first_or_404()
+    db.session.delete(conversation)
+    db.session.commit()
+    return '', 204
+
+@app.route('/api/conversations/<int:conversation_id>/messages', methods=['GET'])
+@login_required
+def get_messages(conversation_id):
+    conversation = Conversation.query.filter_by(id=conversation_id, user_id=current_user.id).first_or_404()
+    messages = Message.query.filter_by(conversation_id=conversation.id).order_by(Message.created_at).all()
+    return jsonify([{
+        'id': msg.id,
+        'content': msg.content,
+        'is_user': msg.is_user,
+        'created_at': msg.created_at.isoformat()
+    } for msg in messages])
+
+@app.route('/api/conversations/<int:conversation_id>/messages', methods=['POST'])
+@login_required
+def send_message(conversation_id):
+    conversation = Conversation.query.filter_by(id=conversation_id, user_id=current_user.id).first_or_404()
+    data = request.json
+    
+    if not data or 'content' not in data:
+        return jsonify({'error': 'Message content is required'}), 400
+    
+    # Save user message
+    user_message = Message(
+        conversation_id=conversation.id,
+        content=data['content'],
+        is_user=True
+    )
+    db.session.add(user_message)
+    
+    # Update conversation timestamp
+    conversation.updated_at = user_message.created_at
+    
+    # Update conversation title if it's the first message
+    if conversation.title == "New Conversation" and len(data['content']) > 0:
+        # Use first few words for the title
+        title_preview = data['content'][:30] + ('...' if len(data['content']) > 30 else '')
+        conversation.title = title_preview
+    
+    db.session.commit()
+    
+    # Get AI response
+    try:
+        # Get user profile information for context
+        user_info = {
+            'username': current_user.username,
+            'first_name': current_user.first_name,
+            'last_name': current_user.last_name,
+            'bio': current_user.bio,
+            'business_name': current_user.business_name,
+            'business_description': current_user.business_description
+        }
+        
+        # Get previous messages for context
+        previous_messages = Message.query.filter_by(conversation_id=conversation.id).order_by(Message.created_at).all()
+        message_history = [{'role': 'user' if msg.is_user else 'assistant', 'content': msg.content} for msg in previous_messages]
+        
+        # Get AI response
+        ai_response = get_agent_response(data['content'], message_history, user_info)
+        
+        # Save AI response
+        ai_message = Message(
+            conversation_id=conversation.id,
+            content=ai_response,
+            is_user=False
+        )
+        db.session.add(ai_message)
+        db.session.commit()
+        
+        # Extract insights if appropriate
+        if len(ai_response) > 100 and any(keyword in ai_response.lower() for keyword in ['insight', 'discover', 'realize', 'clarity']):
+            # Create a new insight
+            insight = UserInsight(
+                user_id=current_user.id,
+                content=ai_response[:200] + ("..." if len(ai_response) > 200 else ""),
+                source_conversation_id=conversation.id
+            )
+            db.session.add(insight)
+            db.session.commit()
+        
+        return jsonify({
+            'id': ai_message.id,
+            'content': ai_message.content,
+            'is_user': ai_message.is_user,
+            'created_at': ai_message.created_at.isoformat()
+        })
+    
+    except Exception as e:
+        logging.error(f"Error getting AI response: {e}")
+        return jsonify({'error': 'Failed to get AI response. Please try again.'}), 500
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    if request.method == 'POST':
+        # Update user profile information
+        current_user.first_name = request.form.get('first_name', '')
+        current_user.last_name = request.form.get('last_name', '')
+        current_user.bio = request.form.get('bio', '')
+        current_user.business_name = request.form.get('business_name', '')
+        current_user.business_description = request.form.get('business_description', '')
+        
+        try:
+            db.session.commit()
+            flash('Profile updated successfully', 'success')
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f"Error updating profile: {e}")
+            flash('An error occurred while updating profile', 'danger')
+            
+    return render_template('profile.html')
+
+@app.route('/goals', methods=['GET', 'POST'])
+@login_required
+def goals():
+    if request.method == 'POST':
+        title = request.form.get('title')
+        description = request.form.get('description', '')
+        
+        if not title:
+            flash('Goal title is required', 'danger')
+        else:
+            goal = UserGoal(
+                user_id=current_user.id,
+                title=title,
+                description=description
+            )
+            db.session.add(goal)
+            db.session.commit()
+            flash('Goal added successfully', 'success')
+            
+    goals = UserGoal.query.filter_by(user_id=current_user.id).all()
+    return render_template('goals.html', goals=goals)
+
+@app.route('/api/goals/<int:goal_id>/toggle', methods=['POST'])
+@login_required
+def toggle_goal(goal_id):
+    goal = UserGoal.query.filter_by(id=goal_id, user_id=current_user.id).first_or_404()
+    goal.completed = not goal.completed
+    db.session.commit()
+    return jsonify({'id': goal.id, 'completed': goal.completed})
+
+@app.route('/insights')
+@login_required
+def insights():
+    insights = UserInsight.query.filter_by(user_id=current_user.id).order_by(UserInsight.created_at.desc()).all()
+    return render_template('insights.html', insights=insights)

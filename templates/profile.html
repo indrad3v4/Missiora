@@ -1,0 +1,64 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3 border-0">
+                    <h3 class="fw-bold mb-0">Your Profile</h3>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-muted mb-4">Complete your profile to help us better understand your authentic self and business aspirations.</p>
+                    
+                    <form method="POST" action="{{ url_for('profile') }}">
+                        <div class="row mb-3">
+                            <div class="col-md-6 mb-3 mb-md-0">
+                                <label for="first_name" class="form-label">First Name</label>
+                                <input type="text" class="form-control" id="first_name" name="first_name" value="{{ current_user.first_name or '' }}">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="last_name" class="form-label">Last Name</label>
+                                <input type="text" class="form-control" id="last_name" name="last_name" value="{{ current_user.last_name or '' }}">
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="bio" class="form-label">About You</label>
+                            <textarea class="form-control" id="bio" name="bio" rows="3" placeholder="Share a bit about yourself, your values, and what drives you...">{{ current_user.bio or '' }}</textarea>
+                            <div class="form-text">This helps us understand your personal identity and values.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="business_name" class="form-label">Business Name</label>
+                            <input type="text" class="form-control" id="business_name" name="business_name" value="{{ current_user.business_name or '' }}">
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="business_description" class="form-label">Business Description</label>
+                            <textarea class="form-control" id="business_description" name="business_description" rows="3" placeholder="Describe your business, its purpose, and your vision for it...">{{ current_user.business_description or '' }}</textarea>
+                            <div class="form-text">This helps us understand your professional goals and aspirations.</div>
+                        </div>
+                        
+                        <div class="alert alert-info mb-4">
+                            <div class="d-flex">
+                                <div class="me-3">
+                                    <i class="fas fa-info-circle fa-2x"></i>
+                                </div>
+                                <div>
+                                    <h5 class="alert-heading fw-bold">Why we ask for this information</h5>
+                                    <p class="mb-0">This profile information helps your AI assistant understand both your personal identity and professional goals, enabling more meaningful conversations about unifying these aspects of your life.</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">Save Profile</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

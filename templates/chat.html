@@ -1,0 +1,195 @@
+{% extends "layout.html" %}
+
+{% block extra_css %}
+<style>
+    .chat-container {
+        height: calc(100vh - 180px);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .chat-sidebar {
+        width: 280px;
+        border-right: 1px solid #e5e5e5;
+        overflow-y: auto;
+    }
+    
+    .chat-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+    
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.5rem;
+    }
+    
+    .chat-input {
+        border-top: 1px solid #e5e5e5;
+        padding: 1rem;
+        background-color: #fff;
+    }
+    
+    .message {
+        margin-bottom: 1.5rem;
+        max-width: 85%;
+    }
+    
+    .message-user {
+        margin-left: auto;
+        background-color: #f0f7ff;
+        border-radius: 1rem 0 1rem 1rem;
+    }
+    
+    .message-ai {
+        margin-right: auto;
+        background-color: #f8f9fa;
+        border-radius: 0 1rem 1rem 1rem;
+    }
+    
+    .message-content {
+        padding: 1rem;
+        white-space: pre-wrap;
+    }
+    
+    .message-time {
+        font-size: 0.75rem;
+        color: #6c757d;
+        text-align: right;
+        padding: 0.25rem 1rem;
+    }
+    
+    .conversation-list-item {
+        cursor: pointer;
+        border-radius: 0.5rem;
+        transition: background-color 0.2s;
+    }
+    
+    .conversation-list-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .conversation-list-item.active {
+        background-color: #e9f2ff;
+    }
+    
+    .welcome-empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        padding: 2rem;
+        text-align: center;
+    }
+    
+    @media (max-width: 768px) {
+        .chat-sidebar {
+            display: none;
+        }
+        
+        .chat-sidebar.show {
+            display: block;
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100%;
+            z-index: 1030;
+            background-color: white;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+        
+        .chat-container {
+            height: calc(100vh - 150px);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0">
+    <div class="chat-container">
+        <div class="d-md-none d-flex p-2 bg-light">
+            <button class="btn btn-sm btn-outline-secondary me-2" id="toggleSidebar">
+                <i class="fas fa-bars"></i>
+            </button>
+            <h5 class="mb-0 flex-grow-1">{{ conversation.title if conversation else 'Chat' }}</h5>
+            <button class="btn btn-sm btn-primary" id="newConversationMobile">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="d-flex h-100">
+            <div class="chat-sidebar p-3">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Conversations</h5>
+                    <button class="btn btn-sm btn-primary" id="newConversation">
+                        <i class="fas fa-plus"></i> New
+                    </button>
+                </div>
+                
+                <div class="conversation-list">
+                    {% for conv in all_conversations %}
+                        <div class="conversation-list-item p-2 mb-2 {% if conversation and conversation.id == conv.id %}active{% endif %}" data-id="{{ conv.id }}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1 text-truncate" style="max-width: 180px;">{{ conv.title }}</h6>
+                                    <p class="text-muted small mb-0">{{ conv.updated_at.strftime('%b %d, %Y') }}</p>
+                                </div>
+                                <button class="btn btn-sm text-danger delete-conversation" data-id="{{ conv.id }}">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- Main Chat Area -->
+            <div class="chat-main">
+                {% if conversation %}
+                    <div class="chat-messages" id="chatMessages">
+                        {% for message in messages %}
+                            <div class="message {% if message.is_user %}message-user{% else %}message-ai{% endif %}">
+                                <div class="message-content">{{ message.content }}</div>
+                                <div class="message-time">{{ message.created_at.strftime('%I:%M %p') }}</div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                    <div class="chat-input">
+                        <form id="messageForm">
+                            <div class="input-group">
+                                <textarea class="form-control" id="messageInput" placeholder="Type your message..." rows="1" required></textarea>
+                                <button class="btn btn-primary" type="submit">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                {% else %}
+                    <div class="welcome-empty-state">
+                        <div class="mb-4">
+                            <i class="fas fa-comments fa-4x text-muted"></i>
+                        </div>
+                        <h3 class="fw-bold mb-3">Welcome to Your Unified Assistant</h3>
+                        <p class="text-muted mb-4">
+                            Start a conversation with your AI assistant to explore how you can unify your personal identity with your professional growth.
+                        </p>
+                        <button class="btn btn-primary btn-lg" id="startNewConversation">
+                            <i class="fas fa-plus me-2"></i>Start New Conversation
+                        </button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% endblock %}
