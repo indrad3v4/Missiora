@@ -7,6 +7,8 @@ from models import User, Conversation, Message, UserGoal, UserInsight
 from agent_service import get_agent_response
 from werkzeug.security import generate_password_hash
 import json
+from web3 import Web3
+from eth_account.messages import encode_defunct
 
 @app.route('/')
 def index():
@@ -81,8 +83,68 @@ def login():
             return redirect(next_page or url_for('dashboard'))
         else:
             flash('Invalid username or password', 'danger')
-            
+    
+    # Add link to MetaMask login page in the template
     return render_template('login.html')
+
+@app.route('/metamask', methods=['GET'])
+def metamask_login_page():
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    return render_template('metamask_login.html')
+
+@app.route('/metamask/login', methods=['POST'])
+def metamask_login():
+    try:
+        data = request.json
+        if not data or 'address' not in data or 'signature' not in data or 'message' not in data:
+            return jsonify({'error': 'Missing required parameters'}), 400
+        
+        address = data['address']
+        signature = data['signature']
+        message = data['message']
+        
+        # Verify the signature
+        w3 = Web3()
+        message_encoded = encode_defunct(text=message)
+        recovered_address = w3.eth.account.recover_message(message_encoded, signature=signature)
+        
+        if recovered_address.lower() != address.lower():
+            return jsonify({'error': 'Invalid signature'}), 401
+        
+        # Check if user exists
+        user = User.query.filter_by(ethereum_address=address.lower()).first()
+        
+        if user:
+            # User exists, log them in
+            login_user(user, remember=True)
+            return jsonify({'success': True}), 200
+        else:
+            # Create new user
+            username = f"user_{address.lower()[:8]}"
+            base_username = username
+            counter = 1
+            
+            # Make sure username is unique
+            while User.query.filter_by(username=username).first():
+                username = f"{base_username}_{counter}"
+                counter += 1
+            
+            new_user = User(
+                username=username,
+                ethereum_address=address.lower(),
+                auth_type='metamask'
+            )
+            
+            db.session.add(new_user)
+            db.session.commit()
+            
+            login_user(new_user, remember=True)
+            return jsonify({'success': True, 'new_user': True}), 200
+            
+    except Exception as e:
+        logging.error(f"Error during MetaMask login: {e}")
+        return jsonify({'error': 'Authentication failed'}), 500
 
 @app.route('/logout')
 @login_required

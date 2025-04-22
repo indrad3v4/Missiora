@@ -1,0 +1,122 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4 p-md-5">
+                    <div class="text-center mb-4">
+                        <h2 class="fw-bold">Connect with MetaMask</h2>
+                        <p class="text-muted">Sign in using your MetaMask wallet to continue your journey towards a unified business self</p>
+                    </div>
+                    
+                    <div class="text-center mb-4">
+                        <img src="{{ url_for('static', filename='images/metamask-fox.svg') }}" alt="MetaMask Logo" height="80" class="mb-3">
+                    </div>
+                    
+                    <div class="d-grid mb-4">
+                        <button id="connectMetaMaskBtn" class="btn btn-primary btn-lg">
+                            <i class="fas fa-wallet me-2"></i>Connect MetaMask
+                        </button>
+                    </div>
+                    
+                    <div id="statusMessage" class="alert alert-info d-none">
+                        <div class="d-flex align-items-center">
+                            <div class="spinner-border spinner-border-sm me-2" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <span id="statusText">Connecting to MetaMask...</span>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <p class="mb-0">Don't have MetaMask? <a href="https://metamask.io/download/" target="_blank" class="text-decoration-none">Download it here</a></p>
+                    </div>
+                    
+                    <div class="text-center mt-3">
+                        <p class="mb-0">Prefer traditional login? <a href="{{ url_for('login') }}" class="text-decoration-none">Sign in with username</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const connectButton = document.getElementById('connectMetaMaskBtn');
+    const statusMessage = document.getElementById('statusMessage');
+    const statusText = document.getElementById('statusText');
+    
+    connectButton.addEventListener('click', async () => {
+        try {
+            // Check if MetaMask is installed
+            if (typeof window.ethereum === 'undefined') {
+                alert('MetaMask is not installed. Please install MetaMask to continue.');
+                return;
+            }
+            
+            showStatus('Connecting to MetaMask...');
+            
+            // Request account access
+            const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+            const account = accounts[0];
+            
+            if (!account) {
+                hideStatus();
+                alert('No account found. Please unlock your MetaMask wallet.');
+                return;
+            }
+            
+            showStatus('Signing authentication message...');
+            
+            // Sign message to authenticate
+            const message = 'Please sign this message to authenticate with Unified AI Agency for Solopreneurs.';
+            const signature = await ethereum.request({
+                method: 'personal_sign',
+                params: [message, account]
+            });
+            
+            showStatus('Verifying signature...');
+            
+            // Send to server for verification
+            const response = await fetch('/metamask/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    address: account,
+                    signature: signature,
+                    message: message
+                })
+            });
+            
+            if (response.ok) {
+                showStatus('Authentication successful! Redirecting...');
+                window.location.href = '/dashboard';
+            } else {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Authentication failed');
+            }
+        } catch (error) {
+            console.error('MetaMask Error:', error);
+            hideStatus();
+            alert(`MetaMask Error: ${error.message}`);
+        }
+    });
+    
+    function showStatus(message) {
+        statusText.textContent = message;
+        statusMessage.classList.remove('d-none');
+    }
+    
+    function hideStatus() {
+        statusMessage.classList.add('d-none');
+    }
+});
+</script>
+{% endblock %}

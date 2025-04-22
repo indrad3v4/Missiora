@@ -41,6 +41,25 @@
                             <p class="mb-0">Don't have an account? <a href="{{ url_for('register') }}" class="text-decoration-none">Sign up</a></p>
                         </div>
                     </form>
+                    
+                    <div class="text-center mt-4">
+                        <div class="d-flex align-items-center">
+                            <div class="flex-grow-1 border-bottom"></div>
+                            <div class="mx-3 text-muted">OR</div>
+                            <div class="flex-grow-1 border-bottom"></div>
+                        </div>
+                        
+                        <div class="mt-3">
+                            <a href="{{ url_for('metamask_login_page') }}" class="btn btn-outline-primary btn-lg d-flex align-items-center justify-content-center">
+                                <img src="{{ url_for('static', filename='images/metamask-fox.svg') }}" alt="MetaMask" height="24" class="me-2">
+                                Connect with MetaMask
+                            </a>
+                        </div>
+                        
+                        <p class="mt-3 text-muted small">
+                            Use your MetaMask wallet to sign in securely without a password
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
