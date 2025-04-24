@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional
 import json
 
 # Import OpenAI Agents SDK
-from agents import Agent, function_tool, Runner
+from agents import Agent, function_tool, AgentRuntime, Message, Thread
 from openai import OpenAI
 from config import Config
 
@@ -169,6 +169,9 @@ orchestrator_agent = Agent(
     tools=[transfer_to_strategy, transfer_to_creative, transfer_to_production, transfer_to_media]
 )
 
+# Initialize agent runtime
+runtime = AgentRuntime()
+
 def get_greeting() -> Dict[str, str]:
     """Get the initial greeting message from the orchestrator agent."""
     opening_line = "Welcome, solopreneur. What are you creating — and what's holding you back?"
@@ -193,30 +196,29 @@ def get_agent_response(user_message: str, conversation_history: Optional[List[Di
         if user_message and len(user_message) > 500:
             user_message = user_message[:500] + "..."
         
-        # Create a structured conversation history for the Runner
-        messages = []
+        # Create a thread for the conversation
+        thread = Thread()
+        
+        # Add conversation history to the thread
         if conversation_history:
             for msg in conversation_history:
                 if msg.get("role") == "user":
-                    messages.append({"role": "user", "content": msg.get("content", "")})
+                    thread.add(Message.user(msg.get("content", "")))
                 else:
-                    messages.append({"role": "assistant", "content": msg.get("content", "")})
+                    thread.add(Message.assistant(msg.get("content", "")))
         
         # Add the current user message
-        messages.append({"role": "user", "content": user_message})
+        thread.add(Message.user(user_message))
         
-        # Run the orchestrator with the conversation history
+        # Run the orchestrator with the thread
         logger.debug(f"Running orchestrator agent with message: {user_message}")
-        result = Runner.run(
-            orchestrator_agent,
-            messages=messages
-        )
+        result = runtime.run(orchestrator_agent, thread)
         
         # Extract the agent that provided the final response
-        agent_name = result.agent.name if result.agent else "OrchestratorAgent"
+        agent_name = result.agent.name if hasattr(result, 'agent') and result.agent else "OrchestratorAgent"
         
         return {
-            "reply": result.output.content,
+            "reply": result.message.content,
             "agent": agent_name
         }
         

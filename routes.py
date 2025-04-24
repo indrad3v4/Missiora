@@ -341,10 +341,13 @@ def public_chat():
             })
         
         # Otherwise, handle a user message
-        if not data or 'user_message' not in data:
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+            
+        user_message = data.get('user_message')
+        if not user_message:
             return jsonify({'error': 'Message content is required'}), 400
         
-        user_message = data.get('user_message')
         address = data.get('address')
         
         # Retrieve conversation history from session
@@ -398,7 +401,17 @@ def public_chat():
         conversation_history.append({'role': 'user', 'content': user_message})
         
         # Get response from orchestrated AI agents with handoff capabilities
-        result = get_agent_response(user_message, conversation_history)
+        # Convert 'content' field in each history item to match what the SDK expects
+        history_for_agent = []
+        for msg in conversation_history:
+            # Handle both structures in the conversation history
+            content = msg.get('content', msg.get('text', ''))
+            history_for_agent.append({
+                'role': msg.get('role', 'user' if msg.get('is_user', False) else 'assistant'),
+                'content': content
+            })
+        
+        result = get_agent_response(user_message, history_for_agent)
         
         # Add response to history
         conversation_history.append({
@@ -438,4 +451,4 @@ def public_chat():
     
     except Exception as e:
         logging.error(f"Error in narrative chat API: {e}")
-        return jsonify({'error': 'Failed to get AI response. Please try again.'}), 500
+        return jsonify({'error': f'Failed to get AI response. Error: {str(e)}'}), 500

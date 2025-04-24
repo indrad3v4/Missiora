@@ -81,6 +81,7 @@ export default {
     async startConversation() {
       this.isTyping = true;
       try {
+        console.log("Starting conversation...");
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -92,6 +93,7 @@ export default {
         
         if (response.ok) {
           const data = await response.json();
+          console.log("Greeting received:", data);
           this.addMessage({
             id: Date.now(),
             role: 'agent',
@@ -99,14 +101,17 @@ export default {
             text: data.reply
           });
         } else {
-          throw new Error('Failed to start conversation');
+          const errorData = await response.json();
+          console.error("Failed to start conversation:", errorData);
+          throw new Error(errorData.error || 'Failed to start conversation');
         }
       } catch (error) {
         console.error('Error starting conversation:', error);
         this.addMessage({
           id: Date.now(),
           role: 'agent',
-          text: "I apologize, but I'm having trouble connecting. Please try again in a moment."
+          text: "I apologize, but I'm having trouble connecting. Please try again in a moment." + 
+                (error.message ? " Error: " + error.message : "")
         });
       } finally {
         this.isTyping = false;
@@ -140,6 +145,7 @@ export default {
       this.isTyping = true;
       
       try {
+        console.log("Sending message:", userMessage);
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -151,6 +157,8 @@ export default {
         
         if (response.ok) {
           const data = await response.json();
+          console.log("Received response:", data);
+          
           this.addMessage({
             id: Date.now(),
             role: 'agent',
@@ -163,7 +171,9 @@ export default {
             this.messageCount++;
           }
         } else {
-          throw new Error('Failed to get response');
+          const errorData = await response.json();
+          console.error("API error:", errorData);
+          throw new Error(errorData.error || 'Failed to get response');
         }
       } catch (error) {
         console.error('Error sending message:', error);
