@@ -192,8 +192,15 @@ def call_specialized_agent(agent_type, user_message, message_history, context, r
     else:
         agent_prompt = STRATEGY_AGENT_PROMPT  # Default
     
-    # Create message list for OpenAI API
-    messages = [{"role": "system", "content": f"{agent_prompt}\n\n{context}"}]
+    # Create message list for OpenAI API with conciseness instruction
+    instruction = """
+    IMPORTANT FORMAT INSTRUCTION: Keep your response brief and to the point. 
+    Use short paragraphs and bullet points where appropriate.
+    Total response should be under 200 words.
+    Focus only on the most important aspects relevant to the user's query.
+    """
+    
+    messages = [{"role": "system", "content": f"{agent_prompt}\n\n{instruction}\n\n{context}"}]
     
     # Add relevant reasoning for context
     if reasoning:
@@ -235,22 +242,21 @@ def combine_agent_responses(agent_responses, user_message, context=""):
     for resp in agent_responses:
         responses_text += f"\n\n{resp['agent'].upper()} AGENT RESPONSE:\n{resp['response']}"
     
-    # Create the orchestrator prompt for combining responses with contradiction-resolution framework
+    # Create the orchestrator prompt for combining responses with contradiction-resolution framework (more concise)
     combine_prompt = f"""As the Orchestrator for Kraków solopreneurs, you've received the following responses from specialized agents to address this user query:
     
 USER QUERY: {user_message}
 
 {responses_text}
 
-Your task is to synthesize these responses using the contradiction-resolution framework:
+Your task is to synthesize these responses using the contradiction-resolution framework into a CONCISE, EASY-TO-READ format:
 
-1. IDENTIFY CONTRADICTIONS: Identify key tensions or contradictions between personal authenticity and business requirements from the agent responses
-2. ANALYZE TENSIONS: Explore how these contradictions create specific challenges for the solopreneur
-3. UNIFY OPPOSITES: Propose innovative solutions that honor both sides rather than compromising either
-4. IMPLEMENTATION GUIDANCE: Provide clear steps that maintain unity between personal identity and business expression
-5. KRAKÓW CONTEXT: Ensure solutions are relevant to Kraków's specific business ecosystem and culture
+1. Start with a VERY BRIEF summary (1-2 sentences maximum)
+2. Identify 1-2 key tensions between personal authenticity and business requirements 
+3. Provide 2-3 bullet points with practical solutions that honor both sides
+4. End with 1-2 specific action steps relevant to Kraków's business context
 
-Provide your combined response to the user, structuring it to address these contradiction-resolution steps:"""
+Keep your total response under 200 words, use simple language, and format with bullet points for readability."""
 
     # Call OpenAI API with reduced token limits
     response = client.chat.completions.create(
