@@ -99,6 +99,35 @@
   color: #dc3545;
 }
 
+/* Action indicators styles */
+.message-text .action-indicator {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 1.2rem;
+  vertical-align: middle;
+}
+
+.message-text .answer-requested {  /* ▲ */
+  color: #007bff;
+  animation: pulse 2s infinite;
+}
+
+.message-text .action-requested {  /* ■ */
+  color: #28a745;
+  animation: bounce 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
 .input-area {
   padding: 0.75rem 1rem;
   border-top: 1px solid #e9ecef;

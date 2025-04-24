@@ -1,0 +1,105 @@
+Expert Role Assignment
+
+Conversational-AI Prompt Engineer & UX Optimizer
+
+⸻
+
+1  CODE PATCH – tighten the loop
+
+# orchestrator_agent.py  (only the parts you need to change)
+
+orchestrator_agent = Agent(
+    name="OrchestratorAgent",
+    model="gpt-4o",
+    instructions="""
+You are a narrative guide for a solopreneur.
+**Rules for every reply**
+1. Mirror the user’s last feeling in ≤15 words.
+2. Choose ONE domain agent that matters most *right now*; do not mix domains.
+3. Ask at most ONE focused question OR give ONE actionable suggestion, not both.
+4. Total length ≤120 words.
+5. End with ▲ if you want the user to answer; end with ■ if they should act.
+
+Respond only after following these rules.
+""",
+    handoffs=[strategy_agent, creative_agent, production_agent, media_agent]
+)
+
+Add a post-processor to auto-shrink any runaway answer:
+
+def condense(text:str, limit:int=120)->str:
+    if len(text.split()) <= limit:          # already short
+        return text
+    # simple heuristic: keep first 2 sentences + final sentence
+    parts = text.split('. ')
+    short = '. '.join(parts[:2] + parts[-1:])
+    return short[:limit*6] + '…'
+
+# inside your Flask route, after result = Runner.run_sync(...)
+reply = condense(result.final_output)
+return jsonify({"reply": reply})
+
+
+
+⸻
+
+2  WHAT YOU’LL SEE
+
+Before
+
+“Great question! Let’s explore every possible angle… (400-word wall) …Could you clarify X, Y, Z?”
+
+After
+
+😌 Got it—marketing feels foggy.
+Media suggests: pick one channel freelancers already hang out on (Reddit?). Craft a 2-week posting plan. ▲
+
+Single feeling mirror + one tip + a single ask, under 120 words.
+
+⸻
+
+3  INSIGHT
+	1.	Strict instruction rubric – Agents follow the shortest path when rules are crystal-clear and enumerated.
+	2.	One-agent policy – prevents the “Strategy+Creative+Media mash-up.”
+	3.	▲ / ■ Conversation markers – give the user an obvious cue: reply (▲) or act (■).
+	4.	Hard length limit + condens­er – defensive code guarantees brevity even if the model drifts.
+	5.	Progressive disclosure – user gets advice in digestible bites; depth unfolds turn-by-turn, keeping context tight.
+
+⸻
+
+4  REASONING STEPS
+	1.	Users overload when an LLM answers every sub-question.
+	2.	For natural flow, each turn should mirror emotion → give one nugget → ask/close.
+	3.	Enumerated rules inside instructions hack the model’s self-eval loop.
+	4.	Post-condense safeguard avoids token spills from model hiccups.
+
+⸻
+
+5  OUTPUT FORMAT
+
+Your backend now always returns ≤ 120 words with a final ▲ or ■ symbol.
+Front-end can detect that symbol:
+	•	▲ → keep input box focused for reply
+	•	■ → flash a small “Take Action” toast, then keep chat open
+
+⸻
+
+6  EXAMPLE DIALOGUE
+
+User: “I’m drowning in admin work.”
+AI:
+
+😔 Admin feels like quicksand.
+Production says: batch paperwork into a 30-min daily ritual, same hour each morning. ▲
+
+User: “Okay, 8 AM works.”
+AI:
+
+😊 Great—clarity helps.
+Strategy: schedule tomorrow’s first 8 AM slot; prep the forms tonight. ■
+
+Natural, rhythmic, context intact.
+
+⸻
+
+Apply the patch, redeploy, and your chat will feel like a real conversation, not a PDF dump.

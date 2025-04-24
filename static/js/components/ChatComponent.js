@@ -267,10 +267,18 @@ export default {
       // Convert line breaks to <br> tags and format bullet points
       if (!text) return '';
       
-      return text
+      // Apply formatting for the main content
+      let formattedText = text
         .replace(/\n/g, '<br>')
         .replace(/• (.*?)(?=<br>|$)/g, '<li>$1</li>') // Convert bullet points to list items
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // Bold markdown
+        
+      // Format the action indicators (▲ and ■)
+      formattedText = formattedText
+        .replace(/▲\s*$/, '<span class="action-indicator answer-requested">▲</span>')
+        .replace(/■\s*$/, '<span class="action-indicator action-requested">■</span>');
+      
+      return formattedText;
     },
     
     formatAgentName(agentName) {
