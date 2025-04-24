@@ -13,8 +13,13 @@ from eth_account.messages import encode_defunct
 
 @app.route('/')
 def index():
-    # Always show the main AI interface with MetaMask connection prompt
-    return render_template('index.html')
+    # Redirect to the new narrative chat experience
+    return redirect(url_for('narrative_chat'))
+
+@app.route('/narrative-chat')
+def narrative_chat():
+    # Show the narrative-focused AI interface with MetaMask connection prompt
+    return render_template('narrative_chat.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -310,20 +315,40 @@ def insights():
     insights = UserInsight.query.filter_by(user_id=current_user.id).order_by(UserInsight.created_at.desc()).all()
     return render_template('insights.html', insights=insights)
 
-# New non-authenticated API endpoint for the AI chat on the homepage
+# Enhanced API endpoint for narrative-style chat with agent handoff
 @app.route('/api/chat', methods=['POST'])
 def public_chat():
-    """API endpoint for the public chat feature that works without login"""
+    """API endpoint for the narrative-style chat feature with agent handoff capabilities"""
     try:
         data = request.json
-        if not data or 'message' not in data:
+        
+        # Check if this is a start conversation request
+        if data.get('start'):
+            # Initialize or reset the chat session
+            session['conversation_history'] = []
+            greeting = get_greeting()
+            
+            # Store the greeting in session history
+            session['conversation_history'] = [{
+                'role': 'assistant', 
+                'agent': greeting['agent'],
+                'content': greeting['reply']
+            }]
+            
+            return jsonify({
+                'reply': greeting['reply'],
+                'agent': greeting['agent']
+            })
+        
+        # Otherwise, handle a user message
+        if not data or 'user_message' not in data:
             return jsonify({'error': 'Message content is required'}), 400
         
-        user_message = data.get('message')
+        user_message = data.get('user_message')
         address = data.get('address')
         
-        # Optional: Store chat history in session for anonymous users
-        message_history = session.get('chat_history', [])
+        # Retrieve conversation history from session
+        conversation_history = session.get('conversation_history', [])
         
         # If we have an ethereum address, try to find the user for personalization
         user_info = None
@@ -340,30 +365,77 @@ def public_chat():
                     'business_description': user.business_description
                 }
                 
-                # Get last conversation if exists for context
-                last_conversation = Conversation.query.filter_by(user_id=user.id).order_by(Conversation.updated_at.desc()).first()
-                if last_conversation:
-                    previous_messages = Message.query.filter_by(conversation_id=last_conversation.id).order_by(Message.created_at).limit(5).all()
-                    message_history = [{'role': 'user' if msg.is_user else 'assistant', 'content': msg.content} for msg in previous_messages]
+                # Store user in a persisted conversation if logged in
+                if current_user.is_authenticated:
+                    # Create or update conversation record for this chat session
+                    conversation_id = session.get('current_conversation_id')
+                    if not conversation_id:
+                        # Create a new conversation
+                        conversation = Conversation(user_id=current_user.id)
+                        db.session.add(conversation)
+                        db.session.commit()
+                        session['current_conversation_id'] = conversation.id
+                    else:
+                        # Use existing conversation
+                        conversation = Conversation.query.get(conversation_id)
+                        if not conversation or conversation.user_id != current_user.id:
+                            # Create a new conversation if ID is invalid
+                            conversation = Conversation(user_id=current_user.id)
+                            db.session.add(conversation)
+                            db.session.commit()
+                            session['current_conversation_id'] = conversation.id
+                    
+                    # Add user message to DB
+                    user_msg = Message(
+                        conversation_id=conversation.id,
+                        content=user_message,
+                        is_user=True
+                    )
+                    db.session.add(user_msg)
+                    db.session.commit()
         
         # Add current message to history
-        message_history.append({'role': 'user', 'content': user_message})
+        conversation_history.append({'role': 'user', 'content': user_message})
         
-        # Get response from orchestrated AI agents
-        ai_response = get_agent_response(user_message, message_history, user_info)
+        # Get response from orchestrated AI agents with handoff capabilities
+        result = get_agent_response(user_message, conversation_history)
         
         # Add response to history
-        message_history.append({'role': 'assistant', 'content': ai_response})
+        conversation_history.append({
+            'role': 'assistant', 
+            'agent': result['agent'],
+            'content': result['reply']
+        })
         
-        # Keep only last 10 messages in history
-        if len(message_history) > 20:
-            message_history = message_history[-20:]
+        # Keep only last 20 messages in history to prevent context overflow
+        if len(conversation_history) > 20:
+            conversation_history = conversation_history[-20:]
             
         # Store updated history in session
-        session['chat_history'] = message_history
+        session['conversation_history'] = conversation_history
         
-        return jsonify({'response': ai_response})
+        # If user is logged in, save the AI response to the database
+        if current_user.is_authenticated and session.get('current_conversation_id'):
+            conversation_id = session.get('current_conversation_id')
+            ai_message = Message(
+                conversation_id=conversation_id,
+                content=result['reply'],
+                is_user=False
+            )
+            db.session.add(ai_message)
+            db.session.commit()
+            
+            # Update conversation title if it's new
+            conversation = Conversation.query.get(conversation_id)
+            if conversation and conversation.title == "New Conversation":
+                conversation.title = user_message[:30] + ('...' if len(user_message) > 30 else '')
+                db.session.commit()
+        
+        return jsonify({
+            'reply': result['reply'],
+            'agent': result['agent']
+        })
     
     except Exception as e:
-        logging.error(f"Error in public chat API: {e}")
+        logging.error(f"Error in narrative chat API: {e}")
         return jsonify({'error': 'Failed to get AI response. Please try again.'}), 500

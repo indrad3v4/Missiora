@@ -2,7 +2,7 @@
 
 export default {
   name: 'ChatComponent',
-  template: `
+  template: /* html */`
     <div class="chat-container">
       <!-- Chat messages -->
       <div class="messages-container" ref="messagesContainer">
@@ -22,7 +22,7 @@ export default {
             <input 
               type="text" 
               v-model="userInput" 
-              :disabled="isTyping || messageCount >= MAX_FREE_MESSAGES && !isAuthenticated"
+              :disabled="isTyping || (messageCount >= MAX_FREE_MESSAGES && !isAuthenticated)"
               class="form-control" 
               placeholder="Type your response..." 
               ref="inputField"
@@ -39,7 +39,7 @@ export default {
         <div v-if="messageCount >= MAX_FREE_MESSAGES - 2 && !isAuthenticated" class="message-limit-warning">
           {{ messageCount === MAX_FREE_MESSAGES - 1 ? 
             "This is your last free message. Connect with MetaMask for unlimited access." : 
-            `You have ${MAX_FREE_MESSAGES - messageCount} more free messages. Connect with MetaMask for unlimited access.` 
+            "You have " + (MAX_FREE_MESSAGES - messageCount) + " more free messages. Connect with MetaMask for unlimited access." 
           }}
         </div>
       </div>

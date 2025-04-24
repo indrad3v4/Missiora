@@ -1,0 +1,83 @@
+{% extends 'layout.html' %}
+
+{% block title %}AI Agency for Solopreneurs - Narrative Chat{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chat-component.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">AI Agency for Solopreneurs</h5>
+                    {% if not current_user.is_authenticated %}
+                    <button id="connectMetaMaskBtn" class="btn btn-primary btn-sm">
+                        <i class="fas fa-wallet me-2"></i>Connect with MetaMask
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="card-body p-0">
+                    <!-- Vue.js chat component will be mounted here -->
+                    <div id="chat-app"></div>
+                </div>
+                <div class="card-footer bg-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">Powered by OpenAI Agents for Solopreneurs</small>
+                        <div>
+                            {% if current_user.is_authenticated %}
+                            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-columns me-1"></i>Dashboard
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Import Vue.js -->
+<script type="importmap">
+{
+  "imports": {
+    "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js"
+  }
+}
+</script>
+<script type="module" src="{{ url_for('static', filename='js/vue-app.js') }}"></script>
+
+<!-- MetaMask Integration -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Check if Web3 is injected by MetaMask
+        if (typeof window.ethereum !== 'undefined') {
+            console.log('MetaMask is installed!');
+            
+            // Check if already connected
+            if (ethereum.selectedAddress) {
+                const btn = document.getElementById('connectMetaMaskBtn');
+                if (btn) {
+                    btn.innerHTML = `<i class="fas fa-check-circle me-2"></i>Connected: ${ethereum.selectedAddress.substring(0, 6)}...${ethereum.selectedAddress.substring(38)}`;
+                    btn.classList.remove('btn-primary');
+                    btn.classList.add('btn-success');
+                }
+            }
+        } else {
+            console.log('MetaMask is not installed');
+            const btn = document.getElementById('connectMetaMaskBtn');
+            if (btn) {
+                btn.innerHTML = '<i class="fas fa-exclamation-circle me-2"></i>Install MetaMask';
+                btn.addEventListener('click', () => {
+                    window.open('https://metamask.io/download.html', '_blank');
+                });
+            }
+        }
+    });
+</script>
+{% endblock %}
