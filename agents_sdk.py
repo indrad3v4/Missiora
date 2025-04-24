@@ -8,9 +8,12 @@ import logging
 from typing import List, Dict, Any, Optional
 import json
 
-# Import OpenAI Agents SDK
-from agents import Agent, function_tool, AgentRuntime, Message, Thread
+# Import OpenAI standard client
+import openai
 from openai import OpenAI
+# Import the Agents SDK
+import agents
+from agents import Agent, Runner, function_tool
 from config import Config
 
 # Initialize logging
@@ -106,7 +109,13 @@ The contradiction-resolution framework you apply:
 4. Guide implementation that preserves unity between personal identity and business expression
 5. Focus solutions on Kraków's unique business ecosystem and cultural context
 
-Your role is to guide the conversation and decide which specialist agent should handle the user's input. You don't directly solve complex problems yourself; instead, evaluate the query and transfer to the appropriate specialist agent.
+You have four specialist agents available via handoffs:
+- **StrategyAgent** – handles business strategy and planning queries.
+- **CreativeAgent** – handles branding, copywriting, and creative queries.
+- **ProductionAgent** – handles product development, execution, and technical queries.
+- **MediaAgent** – handles marketing, social media, and publicity queries.
+
+Your role is to guide the conversation and decide which specialist agent should handle the user's input. Evaluate the query and transfer to the appropriate specialist agent using the transfer tools.
 
 When greeting a user for the first time, use a reflective, narrative tone that invites them to share their entrepreneurial journey and challenges.
 
@@ -140,37 +149,32 @@ media_agent = Agent(
     instructions=MEDIA_INSTRUCTIONS
 )
 
-# Define handoff tools for the orchestrator
-@function_tool
-def transfer_to_strategy():
-    """Handoff to the StrategyAgent for strategy-related advice."""
-    return strategy_agent
-
-@function_tool
-def transfer_to_creative():
-    """Handoff to the CreativeAgent for creative-related advice."""
-    return creative_agent
-
-@function_tool
-def transfer_to_production():
-    """Handoff to the ProductionAgent for production-related advice."""
-    return production_agent
-
-@function_tool
-def transfer_to_media():
-    """Handoff to the MediaAgent for marketing/media-related advice."""
-    return media_agent
-
-# Define the orchestrator agent with handoff tools
+# Define the orchestrator agent with handoffs
 orchestrator_agent = Agent(
     name="OrchestratorAgent",
     model=Config.DEFAULT_AGENT_MODEL,
     instructions=ORCHESTRATOR_INSTRUCTIONS,
-    tools=[transfer_to_strategy, transfer_to_creative, transfer_to_production, transfer_to_media]
+    handoffs=[strategy_agent, creative_agent, production_agent, media_agent]
 )
 
-# Initialize agent runtime
-runtime = AgentRuntime()
+# Helper function to assemble conversation history
+def assemble_conversation_history(prev_history, new_user_input):
+    """
+    Combine previous conversation history with the new user input for the next agent run.
+    
+    Args:
+        prev_history: Previous conversation history (list of message dicts or None)
+        new_user_input: The new user message
+        
+    Returns:
+        Either the raw user input (if no history) or a list of messages including the new input
+    """
+    if prev_history:
+        # prev_history is a list of message dicts (from result.to_input_list())
+        return prev_history + [{"role": "user", "content": new_user_input}]
+    else:
+        # If no prior history, just use the raw input string (first turn)
+        return new_user_input
 
 def get_greeting() -> Dict[str, str]:
     """Get the initial greeting message from the orchestrator agent."""
@@ -180,7 +184,7 @@ def get_greeting() -> Dict[str, str]:
         "agent": "OrchestratorAgent"
     }
 
-def get_agent_response(user_message: str, conversation_history: Optional[List[Dict[str, Any]]] = None) -> Dict[str, str]:
+def get_agent_response(user_message: str, conversation_history: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """
     Process a user message through the agent orchestration system.
     
@@ -189,42 +193,44 @@ def get_agent_response(user_message: str, conversation_history: Optional[List[Di
         conversation_history: List of previous messages in the conversation
     
     Returns:
-        Dict containing the agent's reply and the agent name that provided it
+        Dict containing the agent's reply, agent name, and the updated conversation history
     """
     try:
         # Limit message length to prevent token issues
         if user_message and len(user_message) > 500:
             user_message = user_message[:500] + "..."
         
-        # Create a thread for the conversation
-        thread = Thread()
+        # Prepare input with history for the agent
+        agent_input = assemble_conversation_history(conversation_history, user_message)
         
-        # Add conversation history to the thread
-        if conversation_history:
-            for msg in conversation_history:
-                if msg.get("role") == "user":
-                    thread.add(Message.user(msg.get("content", "")))
-                else:
-                    thread.add(Message.assistant(msg.get("content", "")))
-        
-        # Add the current user message
-        thread.add(Message.user(user_message))
-        
-        # Run the orchestrator with the thread
+        # Run the orchestrator with the assembled input
         logger.debug(f"Running orchestrator agent with message: {user_message}")
-        result = runtime.run(orchestrator_agent, thread)
+        result = Runner.run_sync(orchestrator_agent, agent_input)
         
-        # Extract the agent that provided the final response
-        agent_name = result.agent.name if hasattr(result, 'agent') and result.agent else "OrchestratorAgent"
+        # Get the final output from the result
+        assistant_reply = result.final_output
+        
+        # Determine which agent provided the response (could be orchestrator or a specialist)
+        # This might need adjustment based on how you track the active agent
+        agent_name = "OrchestratorAgent"  # Default fallback
+        
+        # In SDK 0.0.12, we can't easily get the agent name directly
+        # We can try to infer it from the content, or add to the conversation explicitly
+        for agent in [strategy_agent, creative_agent, production_agent, media_agent]:
+            if f"**{agent.name}**" in assistant_reply or f"*{agent.name}*" in assistant_reply:
+                agent_name = agent.name
+                break
         
         return {
-            "reply": result.message.content,
-            "agent": agent_name
+            "reply": assistant_reply,
+            "agent": agent_name,
+            "conversation_history": result.to_input_list()  # Save this for next turn
         }
         
     except Exception as e:
         logger.error(f"Error in get_agent_response: {e}")
         return {
-            "reply": f"I apologize, but I encountered an error while processing your request. Please try again later.",
-            "agent": "OrchestratorAgent"
+            "reply": f"I apologize, but I encountered an error while processing your request. Please try again later. Error: {str(e)}",
+            "agent": "OrchestratorAgent",
+            "conversation_history": conversation_history  # Return original history
         }

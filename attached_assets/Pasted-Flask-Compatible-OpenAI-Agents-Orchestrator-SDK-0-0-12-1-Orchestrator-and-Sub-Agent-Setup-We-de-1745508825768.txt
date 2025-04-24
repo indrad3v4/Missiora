@@ -1,0 +1,229 @@
+Flask-Compatible OpenAI Agents Orchestrator (SDK 0.0.12)
+
+1. Orchestrator and Sub-Agent Setup
+
+We define an OrchestratorAgent that delegates user input to one of four specialist sub-agents (Strategy, Creative, Production, Media). Each sub-agent is an Agent with its own instructions (minimal, domain-specific) and tools. The OrchestratorAgent itself is an Agent whose handoffs list includes the four sub-agents. Its prompt (instructions) encodes the logic for choosing the correct agent and using the proper handoff tool.
+
+In OpenAI Agents SDK v0.0.12, we avoid any unsupported messages parameter when running the agent. Instead, the Runner.run_sync (for sync environments) or Runner.run (async) function is called with either a string or a list of message dicts as the input ￼ ￼. To maintain persistent conversation context between turns, we capture the outcome of each run and use result.to_input_list() to obtain the list of messages for the next turn ￼. This list can then be appended with the next user message to form the input for the subsequent call, preserving history.
+
+Below is a complete orchestrator_agent.py file that sets up the four sub-agents, the OrchestratorAgent with handoffs, and a helper function for assembling conversation history:
+
+import openai_agents  # Ensure the OpenAI Agents SDK is installed and imported
+from agents import Agent, Runner, WebSearchTool, FileSearchTool, function_tool
+
+# (Optional) Define any custom function tools using the @function_tool decorator.
+# For minimal setup, no custom function tools are defined here.
+# Example (if needed in future):
+# @function_tool
+# def sample_tool(x: str) -> str:
+#     return f"Processed: {x}"
+
+# Create specialized sub-agents with minimal domain-specific instructions and tools
+strategy_agent = Agent(
+    name="Strategy Agent",
+    instructions="You are a Strategy Agent specializing in business strategy for solopreneurs. Provide strategic guidance and planning advice.",
+    tools=[WebSearchTool()]  # Allows web searching for up-to-date info (if needed)
+)
+
+creative_agent = Agent(
+    name="Creative Agent",
+    instructions="You are a Creative Agent specializing in creative ideation and content creation for solopreneurs. Provide imaginative ideas, branding suggestions, and creative solutions.",
+    tools=[]  # No extra tools needed for creative brainstorming
+)
+
+production_agent = Agent(
+    name="Production Agent",
+    instructions="You are a Production Agent specializing in execution and technical implementation for solopreneurs. Provide advice on technical development, project management, and resource planning.",
+    tools=[FileSearchTool()]  # Can search files/documentation (if integrated with a file system)
+)
+
+media_agent = Agent(
+    name="Media Agent",
+    instructions="You are a Media Agent specializing in marketing, media, and publicity for solopreneurs. Provide advice on marketing strategies, social media engagement, and PR.",
+    tools=[]  # No extra tools needed for media advice
+)
+
+# Create the main OrchestratorAgent with embedded logic to delegate via handoffs
+orchestrator_agent = Agent(
+    name="Orchestrator Agent",
+    instructions="""You are an Orchestrator AI that routes user requests to specialized agents.
+You have four specialist agents available via handoffs:
+- **Strategy Agent** – handles business strategy and planning queries.
+- **Creative Agent** – handles branding, copywriting, and creative queries.
+- **Production Agent** – handles product development, execution, and technical queries.
+- **Media Agent** – handles marketing, social media, and publicity queries.
+
+Your task is to analyze the user's input and decide which agent is best suited to handle it. 
+Then **delegate** the query to that agent by using the appropriate transfer tool (handoff):
+Use `transfer_to_strategy_agent` for strategy-related requests, `transfer_to_creative_agent` for creative requests, 
+`transfer_to_production_agent` for execution/production requests, and `transfer_to_media_agent` for marketing/media requests.
+Always respond by handing off to one of these agents; **do not answer directly**."""
+    ,
+    handoffs=[strategy_agent, creative_agent, production_agent, media_agent]
+)
+
+# Helper function to assemble conversation history for persistent memory between turns
+def assemble_conversation_history(prev_history, new_user_input):
+    """Combine previous conversation history with the new user input for the next agent run."""
+    if prev_history:
+        # prev_history is a list of message dicts (from result.to_input_list())
+        return prev_history + [{"role": "user", "content": new_user_input}]
+    else:
+        # If no prior history, just use the raw input string (first turn)
+        return new_user_input
+}
+
+This setup uses the SDK’s recommended handoff mechanism. Each sub-agent is included in the Orchestrator’s handoffs list, which means the OrchestratorAgent can invoke a tool like transfer_to_<agent_name> to pass control to that agent ￼ ￼. The Orchestrator’s prompt explicitly instructs it how to choose and execute the correct handoff, ensuring the LLM will output a handoff action instead of a direct answer. (Under the hood, the SDK represents each handoff as a tool named transfer_to_<agent_name> ￼.)
+
+2. Flask Endpoint for Conversation (/narrative-chat)
+
+We implement a Flask route to interface with the orchestrator. This endpoint accepts user input (e.g. via JSON POST) and returns the assistant’s response. The route will use the same OrchestratorAgent instance and conversation history across calls to maintain context (in a real app, you might keep this per-user via session or database).
+
+Key points for the Flask integration:
+	•	Use Runner.run_sync(agent, input_data) for synchronous execution in Flask (since Flask’s request handler is not async). This avoids the asyncio event loop and directly returns a result ￼.
+	•	Do not pass a messages list as a parameter to run_sync – instead, if continuing a conversation, pass the entire list of prior messages plus the new user message as the input argument (the SDK will accept a list of {"role": ..., "content": ...} dicts as input to continue the chat) ￼.
+	•	After each turn, update the stored conversation history using result.to_input_list(), which provides the messages (roles and contents) from the run that can serve as input for the next turn ￼. This ensures persistence of the dialogue.
+
+Below is a sample Flask route demonstrating these practices:
+
+from flask import Flask, request, jsonify, session
+from orchestrator_agent import orchestrator_agent, assemble_conversation_history
+
+app = Flask(__name__)
+app.secret_key = "your_secret_key"  # needed if using session
+
+# Initialize conversation memory (could also use session or database for multi-user)
+conversation_history = None  # will hold list of messages from previous turns
+
+@app.route('/narrative-chat', methods=['POST'])
+def narrative_chat():
+    global conversation_history
+    user_message = request.json.get('message', '')  # The user's input text
+    try:
+        # Assemble the input with conversation history for context
+        agent_input = assemble_conversation_history(conversation_history, user_message)
+        # Run the orchestrator agent synchronously with the input
+        result = Runner.run_sync(orchestrator_agent, agent_input)
+        # Extract the assistant's final output
+        assistant_reply = result.final_output
+        # Update the conversation history for persistence
+        conversation_history = result.to_input_list()
+        # Return the assistant's reply (and maybe other info) as JSON
+        return jsonify({"assistant": assistant_reply})
+    except Exception as e:
+        # Handle exceptions (e.g., model errors, max tokens, etc.)
+        return jsonify({"error": str(e)}), 500
+
+This route uses a module-level conversation_history for simplicity. In a production app with multiple users, you would maintain a separate history per user (using the Flask session or a database). For example, you could store session['conversation_history'] instead of a global, so each user session’s dialogue is tracked independently. The key idea is that by reusing the same agent and providing prior messages, the agent retains memory of past turns.
+
+How it works: On the first call, conversation_history is None, so we pass the raw user message to Runner.run_sync. On subsequent calls, we include the accumulated history (all prior user and assistant messages) plus the new user query ￼. The OpenAI Agents SDK ensures the model receives the full context and the OrchestratorAgent will route accordingly in each turn. (The result.final_output contains the answer from the specialist agent on that turn, since the orchestrator hands off the task and ultimately returns the specialist’s answer.)
+
+3. Vue.js Onboarding Card Replacement (MetaMask Button)
+
+On the frontend, replace the existing MetaMask button on the homepage with a narrative onboarding card to kick off the conversation. Instead of prompting the user to connect a wallet immediately, the page will greet the user and start the AI assistant interaction. For example, you might have a Vue component that conditionally shows either the MetaMask connect UI or the new narrative card:
+	•	Remove or hide the MetaMask connect button element.
+	•	Add a new card element (could be a <div> or a dedicated Vue component) that displays the welcome message and perhaps an input box for the user to respond.
+	•	Trigger the initial narrative message automatically when the component is mounted. This could be done either by displaying a static greeting or by programmatically initiating a chat request to the /narrative-chat endpoint (if you want the greeting to come from the AI agent dynamically).
+
+For example, in a Vue single-file component:
+
+<template>
+  <div class="onboarding-card">
+    <!-- The narrative onboarding message to welcome the user -->
+    <p class="welcome-message">
+      Welcome, solopreneur. What are you creating — and what’s holding you back?
+    </p>
+    <!-- You could include an input or UI for the user to continue the conversation -->
+    <div class="chat-input">
+      <input v-model="userInput" @keyup.enter="sendMessage" placeholder="Type your response..."/>
+      <button @click="sendMessage">Send</button>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      userInput: ''
+    };
+  },
+  mounted() {
+    // Auto-start the conversation: display the welcome message (already in template).
+    // If you'd prefer the AI to generate this greeting, you could instead call the API here:
+    // this.sendMessage('<start>') or a similar mechanism.
+  },
+  methods: {
+    sendMessage(message) {
+      const text = message || this.userInput;
+      if (!text) return;
+      // Call the backend /narrative-chat endpoint with the user's message
+      fetch('/narrative-chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ message: text })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.assistant) {
+          // Display the assistant's reply in the UI (you would manage a chat messages list in data)
+          console.log("Assistant:", data.assistant);
+          // For example, push to a messages array and clear userInput
+          this.userInput = '';
+        }
+      });
+    }
+  }
+}
+</script>
+
+In this snippet, the template contains a card with a welcome message and an input box. When the component mounts, it shows the welcome text. (If you want the AI to generate the welcome text instead of a hardcoded string, you could call sendMessage() with a special initial prompt or simply have the backend treat an empty input as a trigger for a greeting.) The sendMessage method posts the user’s message to the Flask endpoint and then handles the assistant’s response (in practice, you would update a chat history in the component state to display it).
+
+Styling (CSS) can be added to .onboarding-card and .welcome-message to make it visually distinct and appealing as an onboarding UI element. For example, you might give it a nice border, background, and some prompt text styling to mimic a “card” appearance.
+
+4. MetaMask Detection Fallback (Optional)
+
+If you still need to handle MetaMask connectivity (for example, if certain users should connect their wallet), implement a detection for MetaMask and adjust the UI accordingly:
+	•	Detect MetaMask: In your Vue component or elsewhere, check for window.ethereum and window.ethereum.isMetaMask. If this is present, MetaMask is installed (desktop browser or MetaMask mobile in-app browser). If not present and the user is on a mobile device, they might have the MetaMask app (which doesn’t inject window.ethereum into external mobile browsers).
+	•	If MetaMask is installed: You can show a Connect Wallet button that calls ethereum.request({ method: 'eth_requestAccounts' }) to prompt connection (desktop or mobile in-app) when clicked.
+	•	If on mobile and no window.ethereum: Provide a deep link or instruction to open the site in MetaMask. For example, you could use MetaMask’s mobile deep linking. MetaMask’s docs indicate that mobile dApps should use a deep link to prompt the MetaMask app ￼. You could change the MetaMask button to a link such as:
+
+<a href="https://metamask.app.link/dapp/your-dapp-url">Open in MetaMask</a>
+
+This link will attempt to open the MetaMask app and direct it to your dApp’s URL (if the user has MetaMask installed on mobile). If the app is not installed, it typically redirects to the app store.
+
+Example: In the Vue component’s mounted() hook, you might do:
+
+mounted() {
+  const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+  if (window.ethereum && window.ethereum.isMetaMask) {
+    // MetaMask is available
+    if (!isMobile) {
+      // Desktop: show connect wallet button (MetaMask extension)
+      this.showConnectButton = true;
+    } else {
+      // Mobile with MetaMask browser: can directly connect
+      this.showConnectButton = true;
+    }
+  } else {
+    if (isMobile) {
+      // Mobile device without window.ethereum (possibly has MetaMask app installed separately)
+      this.mobileMetaMaskLink = "https://metamask.app.link/dapp/your-dapp-url";
+      // The template can use mobileMetaMaskLink to direct users to open in MetaMask
+    } else {
+      // Neither MetaMask extension nor app present: suggest installing MetaMask
+      this.showInstallMetaMaskInfo = true;
+    }
+  }
+}
+
+In summary, the MetaMask fallback replaces the original button’s behavior depending on the context:
+	•	On desktop: If MetaMask is installed, display a “Connect Wallet” button (or automatically prompt connection) instead of an “Install MetaMask” prompt.
+	•	On mobile: If the user likely has MetaMask (detected by user agent or known preference), provide a direct link to open the dApp in the MetaMask app (using a deep link) rather than showing a useless install prompt. This improves UX by guiding the user to the correct environment for connection.
+
+By implementing the above steps, you create a smooth onboarding experience: new users are greeted by the AI assistant (“Welcome, solopreneur…”) instead of a technical wallet prompt, and you still handle wallet connection gracefully when needed. This system is fully compatible with OpenAI Agents SDK 0.0.12 – using the proper Runner.run_sync call and handoff logic – and can be run within a Flask app on Replit or any similar hosting environment.
+
+Sources:
+	1.	OpenAI Agents SDK Documentation – Multi-turn conversations and Runner.run usage ￼ ￼.
+	2.	OpenAI Agents SDK Documentation – Handoff mechanism for delegating to sub-agents ￼ ￼.
+	3.	MetaMask Developer Docs – Guidance on web vs. mobile dApp connections (use of deep links for mobile) ￼.

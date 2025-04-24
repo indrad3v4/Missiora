@@ -325,15 +325,8 @@ def public_chat():
         # Check if this is a start conversation request
         if data.get('start'):
             # Initialize or reset the chat session
-            session['conversation_history'] = []
+            session['conversation_history'] = None  # Set to None for first turn
             greeting = get_greeting()
-            
-            # Store the greeting in session history
-            session['conversation_history'] = [{
-                'role': 'assistant', 
-                'agent': greeting['agent'],
-                'content': greeting['reply']
-            }]
             
             return jsonify({
                 'reply': greeting['reply'],
@@ -351,81 +344,50 @@ def public_chat():
         address = data.get('address')
         
         # Retrieve conversation history from session
-        conversation_history = session.get('conversation_history', [])
+        conversation_history = session.get('conversation_history')
         
         # If we have an ethereum address, try to find the user for personalization
-        user_info = None
-        if address:
+        if address and not current_user.is_authenticated:
             user = User.query.filter_by(ethereum_address=address.lower()).first()
             if user:
-                # Use user profile for context if available
-                user_info = {
-                    'username': user.username,
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'bio': user.bio,
-                    'business_name': user.business_name,
-                    'business_description': user.business_description
-                }
-                
-                # Store user in a persisted conversation if logged in
-                if current_user.is_authenticated:
-                    # Create or update conversation record for this chat session
-                    conversation_id = session.get('current_conversation_id')
-                    if not conversation_id:
-                        # Create a new conversation
-                        conversation = Conversation(user_id=current_user.id)
-                        db.session.add(conversation)
-                        db.session.commit()
-                        session['current_conversation_id'] = conversation.id
-                    else:
-                        # Use existing conversation
-                        conversation = Conversation.query.get(conversation_id)
-                        if not conversation or conversation.user_id != current_user.id:
-                            # Create a new conversation if ID is invalid
-                            conversation = Conversation(user_id=current_user.id)
-                            db.session.add(conversation)
-                            db.session.commit()
-                            session['current_conversation_id'] = conversation.id
-                    
-                    # Add user message to DB
-                    user_msg = Message(
-                        conversation_id=conversation.id,
-                        content=user_message,
-                        is_user=True
-                    )
-                    db.session.add(user_msg)
+                # Use authenticated user with MetaMask
+                login_user(user, remember=True)
+        
+        # Store message in database if user is authenticated
+        if current_user.is_authenticated:
+            # Create or update conversation record for this chat session
+            conversation_id = session.get('current_conversation_id')
+            if not conversation_id:
+                # Create a new conversation
+                conversation = Conversation(user_id=current_user.id)
+                db.session.add(conversation)
+                db.session.commit()
+                session['current_conversation_id'] = conversation.id
+            else:
+                # Use existing conversation
+                conversation = Conversation.query.get(conversation_id)
+                if not conversation or conversation.user_id != current_user.id:
+                    # Create a new conversation if ID is invalid
+                    conversation = Conversation(user_id=current_user.id)
+                    db.session.add(conversation)
                     db.session.commit()
-        
-        # Add current message to history
-        conversation_history.append({'role': 'user', 'content': user_message})
-        
-        # Get response from orchestrated AI agents with handoff capabilities
-        # Convert 'content' field in each history item to match what the SDK expects
-        history_for_agent = []
-        for msg in conversation_history:
-            # Handle both structures in the conversation history
-            content = msg.get('content', msg.get('text', ''))
-            history_for_agent.append({
-                'role': msg.get('role', 'user' if msg.get('is_user', False) else 'assistant'),
-                'content': content
-            })
-        
-        result = get_agent_response(user_message, history_for_agent)
-        
-        # Add response to history
-        conversation_history.append({
-            'role': 'assistant', 
-            'agent': result['agent'],
-            'content': result['reply']
-        })
-        
-        # Keep only last 20 messages in history to prevent context overflow
-        if len(conversation_history) > 20:
-            conversation_history = conversation_history[-20:]
+                    session['current_conversation_id'] = conversation.id
             
-        # Store updated history in session
-        session['conversation_history'] = conversation_history
+            # Add user message to DB
+            user_msg = Message(
+                conversation_id=conversation.id,
+                content=user_message,
+                is_user=True
+            )
+            db.session.add(user_msg)
+            db.session.commit()
+        
+        # Get response from orchestrated AI agents with handoff capabilities using SDK 0.0.12
+        result = get_agent_response(user_message, conversation_history)
+        
+        # Store the updated conversation history for next turn
+        # The SDK in 0.0.12 provides this via result.to_input_list()
+        session['conversation_history'] = result.get('conversation_history')
         
         # If user is logged in, save the AI response to the database
         if current_user.is_authenticated and session.get('current_conversation_id'):

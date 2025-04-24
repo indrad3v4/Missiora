@@ -1,0 +1,64 @@
+import openai_agents  # Ensure the OpenAI Agents SDK is installed and imported
+from agents import Agent, Runner, WebSearchTool, FileSearchTool, function_tool
+
+# (Optional) Define any custom function tools using the @function_tool decorator.
+# For minimal setup, no custom function tools are defined here.
+# Example (if needed in future):
+# @function_tool
+# def sample_tool(x: str) -> str:
+#     return f"Processed: {x}"
+
+# Create specialized sub-agents with minimal domain-specific instructions and tools
+strategy_agent = Agent(
+    name="Strategy Agent",
+    instructions="You are a Strategy Agent specializing in business strategy for solopreneurs. Provide strategic guidance and planning advice.",
+    tools=[WebSearchTool()]  # Allows web searching for up-to-date info (if needed)
+)
+
+creative_agent = Agent(
+    name="Creative Agent",
+    instructions="You are a Creative Agent specializing in creative ideation and content creation for solopreneurs. Provide imaginative ideas, branding suggestions, and creative solutions.",
+    tools=[]  # No extra tools needed for creative brainstorming
+)
+
+production_agent = Agent(
+    name="Production Agent",
+    instructions="You are a Production Agent specializing in execution and technical implementation for solopreneurs. Provide advice on technical development, project management, and resource planning.",
+    tools=[FileSearchTool()]  # Can search files/documentation (if integrated with a file system)
+)
+
+media_agent = Agent(
+    name="Media Agent",
+    instructions="You are a Media Agent specializing in marketing, media, and publicity for solopreneurs. Provide advice on marketing strategies, social media engagement, and PR.",
+    tools=[]  # No extra tools needed for media advice
+)
+
+# Create the main OrchestratorAgent with embedded logic to delegate via handoffs
+orchestrator_agent = Agent(
+    name="Orchestrator Agent",
+    instructions="""You are an Orchestrator AI that routes user requests to specialized agents.
+You have four specialist agents available via handoffs:
+- **Strategy Agent** – handles business strategy and planning queries.
+- **Creative Agent** – handles branding, copywriting, and creative queries.
+- **Production Agent** – handles product development, execution, and technical queries.
+- **Media Agent** – handles marketing, social media, and publicity queries.
+
+Your task is to analyze the user's input and decide which agent is best suited to handle it. 
+Then **delegate** the query to that agent by using the appropriate transfer tool (handoff):
+Use `transfer_to_strategy_agent` for strategy-related requests, `transfer_to_creative_agent` for creative requests, 
+`transfer_to_production_agent` for execution/production requests, and `transfer_to_media_agent` for marketing/media requests.
+Always respond by handing off to one of these agents; **do not answer directly**."""
+    ,
+    handoffs=[strategy_agent, creative_agent, production_agent, media_agent]
+)
+
+# Helper function to assemble conversation history for persistent memory between turns
+def assemble_conversation_history(prev_history, new_user_input):
+    """Combine previous conversation history with the new user input for the next agent run."""
+    if prev_history:
+        # prev_history is a list of message dicts (from result.to_input_list())
+        return prev_history + [{"role": "user", "content": new_user_input}]
+    else:
+        # If no prior history, just use the raw input string (first turn)
+        return new_user_input
+}
