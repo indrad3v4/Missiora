@@ -2,34 +2,34 @@
 
 {% block content %}
 <div class="container-fluid px-0 d-flex flex-column min-vh-100">
-    <!-- Header with app name and logo -->
-    <header class="bg-white py-3 border-bottom sticky-top">
-        <div class="container">
-            <div class="d-flex align-items-center">
-                <div class="d-flex align-items-center">
-                    <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="Unified Logo" height="40" class="me-2">
-                    <span class="fw-bold text-primary fs-4">Unified</span>
-                </div>
-                <div class="ms-auto">
-                    <button id="connectMetaMaskBtn" class="btn btn-primary px-3 d-flex align-items-center">
-                        <i class="fas fa-wallet me-2"></i>Connect with MetaMask
-                    </button>
-                </div>
-            </div>
+    <!-- Simple header with app logo and MetaMask button -->
+    <div class="d-flex align-items-center justify-content-between p-3 border-bottom">
+        <div class="d-flex align-items-center">
+            <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="Unified Logo" height="40" class="me-2">
+            <span class="fw-bold text-primary fs-4">Unified</span>
         </div>
-    </header>
+        <button id="connectMetaMaskBtn" class="btn btn-primary px-3 d-flex align-items-center">
+            <i class="fas fa-wallet me-2"></i>Connect with MetaMask
+        </button>
+    </div>
 
     <!-- Main content area with AI chat interface -->
-    <main class="flex-grow-1 d-flex flex-column bg-light">
-        <div class="container flex-grow-1 d-flex flex-column py-3">
+    <main class="flex-grow-1 d-flex flex-column bg-white">
+        <div class="container-fluid flex-grow-1 d-flex flex-column py-3">
             <!-- Conversation history container -->
             <div id="chatContainer" class="flex-grow-1 mb-3 overflow-y-auto">
                 <div class="chat-welcome text-center py-4">
                     <div class="mb-3">
-                        <div class="avatar-large bg-primary bg-gradient text-white rounded-circle mx-auto mb-3">
-                            <i class="fas fa-robot fa-2x"></i>
+                        <div class="avatar-large bg-primary rounded-circle mx-auto mb-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="4" y="4" width="16" height="16" rx="2" />
+                                <rect x="9" y="9" width="2" height="2" />
+                                <rect x="13" y="9" width="2" height="2" />
+                                <line x1="8" y1="15" x2="16" y2="15" />
+                            </svg>
                         </div>
-                        <h2 class="fw-bold">Your Solopreneur AI Assistant</h2>
+                        <h2 class="fw-bold">AI Agency for</h2>
+                        <h2 class="fw-bold">Solopreneurs</h2>
                         <p class="text-muted mb-0">Unifying your authentic self with business growth</p>
                     </div>
                     <div class="suggestion-chips d-flex flex-wrap justify-content-center gap-2 mt-4">
@@ -71,27 +71,58 @@
             </div>
         </div>
     </main>
+    
+    <!-- Footer with copyright info -->
+    <footer class="py-2 text-center border-top">
+        <p class="small text-muted mb-0">© 2025 Unified - AI Agency for Solopreneurs</p>
+        <div class="mt-1">
+            <a href="#" class="text-muted small me-3">Privacy Policy</a>
+            <a href="#" class="text-muted small">Terms of Service</a>
+        </div>
+    </footer>
 </div>
 {% endblock %}
 
 {% block extra_css %}
 <style>
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    
+    #connectMetaMaskBtn {
+        border-radius: 4px;
+        background-color: #4361EE;
+        padding: 0.5rem 1rem;
+    }
+    
     .avatar-large {
         width: 80px;
         height: 80px;
         display: flex;
         align-items: center;
         justify-content: center;
+        background-color: #4361EE;
+    }
+    
+    .avatar-large i {
+        color: white;
     }
     
     .chip-button {
         font-size: 0.875rem;
-        padding: 0.25rem 1rem;
+        padding: 0.5rem 1rem;
         white-space: nowrap;
+        border: 1px solid #e9ecef;
+        box-shadow: none;
+    }
+    
+    .chat-welcome h2 {
+        margin: 0;
+        line-height: 1.2;
     }
     
     .message {
-        max-width: 80%;
+        max-width: 85%;
         margin-bottom: 1rem;
         border-radius: 1rem;
         padding: 0.75rem 1rem;
@@ -118,24 +149,70 @@
     
     #chatContainer {
         border-radius: 0.5rem;
+        border: 1px solid #e9ecef;
         background-color: white;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-        padding: 1rem;
+        padding: 0;
+        overflow: hidden;
     }
     
     .input-group {
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border: 1px solid #e9ecef;
         border-radius: 0.5rem;
         overflow: hidden;
+        margin-bottom: 0.5rem;
     }
     
     #userInput {
         border: none;
         padding: 0.75rem 1rem;
+        font-size: 1rem;
     }
     
     #userInput:focus {
         box-shadow: none;
+    }
+    
+    .btn-primary {
+        background-color: #4361EE;
+        border-color: #4361EE;
+    }
+    
+    .dots {
+        display: flex;
+        justify-content: center;
+    }
+    
+    .dots span {
+        animation: dots 1.5s infinite ease-in-out;
+        font-size: 2rem;
+        line-height: 0.5;
+    }
+    
+    .dots span:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+    
+    .dots span:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+    
+    @keyframes dots {
+        0%, 100% { opacity: 0.2; transform: translateY(0); }
+        50% { opacity: 1; transform: translateY(-5px); }
+    }
+    
+    footer {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+    
+    footer a {
+        text-decoration: none;
+    }
+    
+    .suggestion-chips {
+        margin-top: 1rem;
+        margin-bottom: 1rem;
     }
 </style>
 {% endblock %}
@@ -240,7 +317,7 @@
                 setTimeout(() => {
                     hideStatus();
                     isAuthenticated = true;
-                    addAssistantMessage("Hello! I'm your solopreneur AI assistant. I'm here to help you unify your authentic self with your business growth. How can I assist you today?");
+                    addAssistantMessage("Hello! I'm your AI Agency assistant for solopreneurs. I'm here to help you unify your authentic self with your business growth. How can I assist you today?");
                 }, 1000);
                 
             } catch (error) {
