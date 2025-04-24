@@ -154,12 +154,18 @@ media_agent = Agent(
     instructions=MEDIA_INSTRUCTIONS
 )
 
-# Define the orchestrator agent with handoffs
+# Define the orchestrator agent with handoffs and web search capability
 orchestrator_agent = Agent(
     name="OrchestratorAgent",
     model=Config.DEFAULT_AGENT_MODEL,
     instructions=ORCHESTRATOR_INSTRUCTIONS,
-    handoffs=[strategy_agent, creative_agent, production_agent, media_agent]
+    tools=[], # We could add WebSearchTool() here if needed
+    handoffs=[
+        strategy_agent,  # Will create transfer_to_StrategyAgent
+        creative_agent,  # Will create transfer_to_CreativeAgent
+        production_agent,  # Will create transfer_to_ProductionAgent
+        media_agent  # Will create transfer_to_MediaAgent
+    ]
 )
 
 # Helper function to assemble conversation history

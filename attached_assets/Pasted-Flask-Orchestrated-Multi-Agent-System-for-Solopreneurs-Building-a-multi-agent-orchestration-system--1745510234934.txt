@@ -1,0 +1,200 @@
+Flask-Orchestrated Multi-Agent System for Solopreneurs
+
+Building a multi-agent orchestration system allows a solopreneur to get specialized assistance in different domains (strategy, branding, production, media) through one interface. We will use OpenAI’s Agents SDK to create an OrchestratorAgent that routes user queries to one of four custom sub-agents: StrategicAgent, CreativeAgent, ProducingAgent, and MediaAgent. Each sub-agent is an expert in its domain, and the orchestrator decides which one should handle a given prompt by analyzing the prompt’s content (not with simple keyword matching, but via the LLM’s reasoning). The system will maintain persistent chat memory so the conversation with the user has continuity. Finally, we’ll implement an asynchronous Flask backend that uses this orchestrator to handle chat requests, returning results in JSON format for a front-end chat UI.
+
+System Overview
+	•	OrchestratorAgent – The central routing agent. It has a high-level instruction to “delegate user requests to the appropriate expert agent”. It is equipped with a web search tool for gathering external information if needed ￼. Instead of answering questions directly, it uses handoffs (from the Agents SDK) to pass control to one of the sub-agents based on the user’s query ￼.
+	•	StrategicAgent – A business strategy expert agent. This agent provides advice on business models, market strategy, financial planning, etc. For example, if the user asks about developing a business plan or marketing strategy, the Orchestrator will route the query here. (It could also use tools like web search for market research as needed.)
+	•	CreativeAgent – A branding and creative marketing expert. This agent helps with brand identity, naming, design ideas, and creative content. Queries about company name, logo ideas, or marketing copy would be handled by this agent.
+	•	ProducingAgent – An operations and product development planner. This agent assists with production planning, project management, or product roadmap questions. If the user asks about managing a project timeline or sourcing manufacturers, this agent comes into play.
+	•	MediaAgent – A media and distribution specialist. This agent knows about social media marketing, content distribution, and PR. Queries on growing an online presence or distributing content are routed here. It may use web tools to check trends or platforms as needed.
+
+Each agent is an instance of the SDK’s Agent class with its own instructions (defining its role/expertise) and any domain-specific tools. For simplicity, we’ll give the Orchestrator a WebSearchTool (so it can search the web when needed) ￼. You can also equip sub-agents with tools (for example, a database lookup tool for the ProducingAgent or an image-generation tool for the CreativeAgent), but those are optional and domain-specific.
+
+Persistent Chat Memory
+
+To provide continuity across turns, we maintain a conversation history. After each user query and agent response, we store the interaction in memory. On a new user query, we prepend the previous conversation to the input so that agents are aware of context. The OpenAI Agents SDK supports passing a list of messages as the input (it will treat them as a conversation history) ￼. We will use a simple in-memory list to accumulate messages as dictionaries like {"role": "user", "content": ...} or {"role": "assistant", "content": ...}. A helper function assemble_conversation(last_result, new_input) will update this history and prepare the combined context for the next agent call. This ensures the agent’s prompt includes what the user said earlier and how the agents replied, simulating chat continuity.
+
+Memory update process:
+	1.	Append the last agent’s answer to history (as an assistant message).
+	2.	Append the new user question to history (as a user message).
+	3.	Send the updated history as input to the orchestrator for the next response.
+
+By default, when using the handoff mechanism, the SDK will give the new agent the entire prior conversation (unless filtered) ￼. Our manual memory management supplements this by making sure the orchestrator always sees the full context each turn. (In a production system, you might use a more robust store or windowing strategy to keep prompts within token limits.)
+
+Implementation Details
+
+We will structure the code into separate Python modules for clarity:
+	•	agents.py – Defines the four sub-agents and the orchestrator agent, setting up their instructions and tools.
+	•	memory.py – Implements the memory store (conversation history) and a function to assemble the conversation context for each new prompt.
+	•	app.py – The Flask web application that initializes the agents, handles incoming requests asynchronously, calls the orchestrator, and returns JSON responses.
+
+Each code section below should be placed in its respective file.
+
+agents.py – Defining Orchestrator and Sub-Agents
+
+from agents import Agent, handoff, WebSearchTool  # OpenAI Agents SDK classes
+
+# Instantiate domain-specific sub-agents for each expertise
+StrategicAgent = Agent(
+    name="StrategicAgent",
+    instructions=(
+        "You are a business strategy expert agent. Help the user with high-level strategy, "
+        "marketing plans, financial advice, and business model development. Provide clear, actionable insights."
+    ),
+    tools=[WebSearchTool()]  # Allows this agent to research information online if needed
+)
+
+CreativeAgent = Agent(
+    name="CreativeAgent",
+    instructions=(
+        "You are a branding and creative marketing expert agent. Help the user with brand identity, naming, design ideas, "
+        "and creative content. Respond with imaginative and brand-focused suggestions."
+    )
+    # (We could add creative tools like an image generator or copywriting tool if available)
+)
+
+ProducingAgent = Agent(
+    name="ProducingAgent",
+    instructions=(
+        "You are an operations and product development expert agent. Assist the user with production planning, project management, "
+        "product roadmaps, and operational advice. Provide practical step-by-step guidance."
+    )
+    # (Tools for project management or data analysis could be added here if needed)
+)
+
+MediaAgent = Agent(
+    name="MediaAgent",
+    instructions=(
+        "You are a media distribution and marketing expert agent. Help the user with social media strategy, content distribution, "
+        "audience engagement, and PR advice. Offer tips on growing reach and optimizing media channels."
+    ),
+    tools=[WebSearchTool()]  # This agent can research current media trends or platform stats if needed
+)
+
+# OrchestratorAgent that will decide which sub-agent to hand off to.
+OrchestratorAgent = Agent(
+    name="OrchestratorAgent",
+    instructions=(
+        "You are an Orchestrator AI assisting a solopreneur. Analyze the user's request and determine which specialist agent to use. "
+        "You have the following expert agents available as tools: StrategicAgent, CreativeAgent, ProducingAgent, MediaAgent. "
+        "Do NOT answer questions directly; instead, always delegate by calling the appropriate agent. If the query is about business strategy or planning, use StrategicAgent. "
+        "If it's about branding or creative work, use CreativeAgent. For production or operations, use ProducingAgent. For marketing and media distribution, use MediaAgent."
+    ),
+    tools=[WebSearchTool()],  # The orchestrator can also search the web for additional info if needed
+    handoffs=[
+        strategic_agent := StrategicAgent,   # direct reference as a handoff tool (will default to tool name like transfer_to_StrategicAgent)
+        creative_agent := CreativeAgent,
+        producing_agent := ProducingAgent,
+        media_agent := MediaAgent
+        # We use the agent instances directly in the handoffs list. By default this creates a handoff tool 
+        # with name "transfer_to_<AgentName>" for each, which the OrchestratorAgent can invoke [oai_citation_attribution:5‡openai.github.io](https://openai.github.io/openai-agents-python/handoffs/#:~:text=from%20agents%20import%20Agent%2C%20handoff) [oai_citation_attribution:6‡openai.github.io](https://openai.github.io/openai-agents-python/handoffs/#:~:text=,data%20is%20controlled%20by%20the).
+    ]
+)
+
+How this works: The OrchestratorAgent is given all four sub-agents in its handoffs list. Internally, the Agents SDK will allow the orchestrator to call one of these as a tool (e.g., transfer_to_StrategicAgent) when the LLM decides to delegate. The orchestrator’s instructions explicitly tell it to always delegate and not answer directly. Each sub-agent has its own instruction set focusing on its domain. We included the WebSearchTool() for the Orchestrator (and a couple of sub-agents) to illustrate tool usage – this lets an agent perform web searches during its reasoning process ￼. (Ensure you have configured any API keys or settings required for the web search tool in your environment if needed.)
+
+memory.py – Conversation Memory Management
+
+# Simple in-memory conversation history store
+conversation_history = []  # list of {"role": ..., "content": ...} messages
+
+def assemble_conversation(last_result, new_user_input):
+    """
+    Update the conversation history with the last agent result and new user input, 
+    and return the assembled history for the next agent run.
+    """
+    # If there's a previous result, add the assistant's last answer to history
+    if last_result is not None:
+        conversation_history.append({"role": "assistant", "content": last_result.final_output})
+    # Add the new user message to the history
+    conversation_history.append({"role": "user", "content": new_user_input})
+    # Return a copy of the full conversation history to use as input context
+    return conversation_history.copy()
+
+def reset_conversation():
+    """Clear the conversation history (e.g., if starting a new chat session)."""
+    conversation_history.clear()
+
+This memory module maintains a list of message dicts. Each dict has a "role" ("user" or "assistant") and the message "content". The assemble_conversation function appends the previous turn’s assistant output (from last_result) and the latest user question, then returns the updated history. We use result.final_output from the SDK’s run result as the assistant’s reply text ￼. This list of messages will be passed into the orchestrator on the next call, so the model will see the full dialogue up to that point. If needed, a reset_conversation function is provided to start fresh (for example, on a new session or if the user resets the chat).
+
+app.py – Flask Backend with Async Agent Routing
+
+import asyncio
+from flask import Flask, request, jsonify
+from agents import OrchestratorAgent  # import the orchestrator and sub-agents (already created on import)
+from agents import StrategicAgent, CreativeAgent, ProducingAgent, MediaAgent  # (if needed for any direct access or debugging)
+from agents import Runner  # OpenAI Agents SDK Runner to execute agents
+from memory import assemble_conversation, reset_conversation
+
+app = Flask(__name__)
+
+# If needed, ensure OpenAI API key is set in environment (e.g., via OPENAI_API_KEY).
+# You can also configure model settings if desired (defaults to GPT-4 by SDK's default).
+# For example, to use gpt-3.5-turbo for all agents, you'd set a default in the SDK config.
+
+# We will keep track of the last result globally for assembling conversation context.
+last_result = None
+
+@app.route("/chat", methods=["POST"])
+async def chat():
+    """Endpoint to handle a chat message from the user and return the assistant's response."""
+    global last_result
+    data = request.get_json(force=True)
+    user_message = data.get("message", "")
+    if user_message.strip() == "":
+        return jsonify({"error": "Empty message"}), 400
+
+    try:
+        # Assemble conversation context with the new user input
+        conversation_input = assemble_conversation(last_result, user_message)
+        # Run the orchestrator agent with the compiled conversation history as input (async call)
+        result = await Runner.run(OrchestratorAgent, input=conversation_input)
+        # Update last_result for the next turn
+        last_result = result
+    except Exception as e:
+        # Handle exceptions (e.g., OpenAI API errors, tool errors)
+        return jsonify({"error": str(e)}), 500
+
+    # Prepare the response JSON. We return the assistant's latest reply.
+    assistant_reply = result.final_output  # the final answer from whichever agent was invoked
+    response_data = {
+        "role": "assistant",
+        "content": assistant_reply
+    }
+    return jsonify(response_data)
+
+@app.route("/reset", methods=["POST"])
+def reset():
+    """Optional endpoint to reset the conversation."""
+    global last_result
+    reset_conversation()
+    last_result = None
+    return jsonify({"message": "Conversation reset."}), 200
+
+# Run the Flask app (for example, using `flask run` or through a WSGI server in Replit)
+# In a production setting, you might use something like: 
+# if __name__ == "__main__":
+#     app.run(host="0.0.0.0", port=5000)
+
+Key points in the Flask app:
+	•	We declare the Flask route /chat as an async def so that we can await the Runner.run(...) call directly (Flask 2.x supports async routes). The Runner.run function executes the OrchestratorAgent’s loop, which will internally decide on a handoff to a sub-agent and produce a result ￼. We pass in the conversation_input (a list of message dicts) so the model sees the prior context.
+	•	The result returned by Runner.run contains the final_output property which is the assistant’s answer to the user ￼. We package this into a JSON response with role/content. This format is convenient for frontends to handle (it mirrors the structure of OpenAI Chat API responses, with “assistant” role). You can adjust the JSON structure as needed by your front-end; the main point is to return the full content of the answer in a structured way.
+	•	We maintain a module-level last_result to keep track of the last turn’s outcome, enabling the next request to include the previous answer in context. After each call, we update last_result. If the user resets the conversation (via /reset), we clear the history and set last_result to None.
+	•	The orchestrator’s decision of which agent to invoke happens inside the model’s reasoning. We did not hard-code any keyword routing. Instead, the OrchestratorAgent’s prompt guides the LLM to pick the correct tool. For example, if the user asks “How should I allocate my budget between marketing and product development?”, the orchestrator (seeing it’s a strategic planning question) will likely call transfer_to_StrategicAgent. The StrategicAgent will then generate the detailed answer, which is returned in result.final_output. From the Flask app’s perspective, we don’t need to manually switch on agent names – the SDK handles the delegation via the LLM’s tool use.
+
+Example Interaction
+
+To illustrate how this all comes together, imagine the user asks the orchestrator: “I have a new product idea. Can you help me come up with a brand name and marketing strategy?”
+	1.	User message: The front-end sends {"message": "I have a new product idea...marketing strategy?"} to the /chat endpoint.
+	2.	Orchestration: The Flask backend calls assemble_conversation(last_result, user_message). Since this is the first turn (last_result is None), it just puts the user message into the conversation history. Then Runner.run(OrchestratorAgent, input=conversation_history) is invoked.
+	3.	LLM reasoning (OrchestratorAgent): According to the Orchestrator’s instructions, the agent sees the user’s question involves brand name (a creative task) and marketing strategy (a strategic task). The LLM decides which single agent to choose. It might reason that branding is the first step, so it calls the CreativeAgent tool (i.e., invokes the handoff to CreativeAgent).
+	4.	LLM handoff: The SDK transfers control to CreativeAgent ￼. The CreativeAgent receives the conversation context (it sees the user’s question about product idea, brand name, and marketing). CreativeAgent generates a response focusing on a brand name (since that’s its specialty), possibly something like: “How about calling it EcoGlow? This name captures … (and some branding rationale) …”. It might or might not address marketing strategy (since that leans into strategy domain). The final output from CreativeAgent is returned.
+	5.	Result: The OrchestratorAgent’s run returns with result.final_output containing the CreativeAgent’s answer (e.g., the brand name suggestion and explanation). The Flask route sets last_result to this result and sends back {"role": "assistant", "content": "<CreativeAgent's answer>"} as JSON. The front-end displays the answer to the user.
+	6.	Follow-up: The user now asks, “Great, how should I market it to reach eco-conscious consumers?” The next request to /chat will include the previous Q&A in the conversation_history. The OrchestratorAgent, seeing this follow-up (and the context that a brand name was given), might decide this is a marketing strategy question and hand off to the StrategicAgent this time. The StrategicAgent would then produce a detailed marketing strategy, which gets returned to the user in turn.
+
+This demo scenario shows the orchestrator reflecting on each input and delegating to the appropriate expert agent dynamically. The persistent memory ensures that the StrategicAgent in the second turn knows the brand name from the first turn (because the conversation history was passed along), leading to a coherent multi-turn consultation.
+
+Conclusion
+
+We’ve set up a Flask-based backend that uses the OpenAI Agents SDK to orchestrate multiple specialized agents. The OrchestratorAgent serves as a intelligent router, using LLM-driven reasoning to choose the right helper agent for each of the solopreneur’s needs. By leveraging handoffs ￼ and tools like web search ￼, this system can handle complex, multi-faceted queries in a flexible way. The provided code can be run on a platform like Replit (make sure to install openai-agents SDK and set your OpenAI API key) to power a chat UI, enabling a solopreneur to interact with what feels like a single AI assistant that actually taps into a suite of expert agents behind the scenes.
