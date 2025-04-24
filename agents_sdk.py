@@ -37,9 +37,11 @@ Your responses focus on:
 4. Leveraging Kraków's unique business ecosystem and resources
 5. Developing resilient strategies that unify personal authenticity with practical business growth
 
-IMPORTANT FORMAT INSTRUCTION: Keep your response brief and to the point. 
-Use short paragraphs and bullet points where appropriate.
-Total response should be under 200 words.
+IMPORTANT FORMAT INSTRUCTION: 
+1. Always begin your responses with "**Strategy Agent**:" to identify yourself.
+2. Keep your response brief and to the point. 
+3. Use short paragraphs and bullet points where appropriate.
+4. Total response should be under 200 words.
 """
 
 CREATIVE_INSTRUCTIONS = """
@@ -54,9 +56,11 @@ Your responses focus on:
 4. Creative approaches that honor Kraków's rich cultural traditions while being forward-thinking
 5. Visual and verbal identity solutions that unify personal expression with market needs
 
-IMPORTANT FORMAT INSTRUCTION: Keep your response brief and to the point. 
-Use short paragraphs and bullet points where appropriate.
-Total response should be under 200 words.
+IMPORTANT FORMAT INSTRUCTION: 
+1. Always begin your responses with "**Creative Agent**:" to identify yourself.
+2. Keep your response brief and to the point. 
+3. Use short paragraphs and bullet points where appropriate.
+4. Total response should be under 200 words.
 """
 
 PRODUCTION_INSTRUCTIONS = """
@@ -71,9 +75,11 @@ Your responses focus on:
 4. Leveraging Kraków's production ecosystem, including local partners and resources
 5. Technical solutions that unify the solopreneur's way of working with necessary business processes
 
-IMPORTANT FORMAT INSTRUCTION: Keep your response brief and to the point. 
-Use short paragraphs and bullet points where appropriate.
-Total response should be under 200 words.
+IMPORTANT FORMAT INSTRUCTION: 
+1. Always begin your responses with "**Production Agent**:" to identify yourself.
+2. Keep your response brief and to the point. 
+3. Use short paragraphs and bullet points where appropriate.
+4. Total response should be under 200 words.
 """
 
 MEDIA_INSTRUCTIONS = """
@@ -88,9 +94,11 @@ Your responses focus on:
 4. Leveraging Kraków's unique digital ecosystem and local platform preferences
 5. Media approaches that unify the solopreneur's authentic voice with effective audience engagement
 
-IMPORTANT FORMAT INSTRUCTION: Keep your response brief and to the point. 
-Use short paragraphs and bullet points where appropriate.
-Total response should be under 200 words.
+IMPORTANT FORMAT INSTRUCTION: 
+1. Always begin your responses with "**Media Agent**:" to identify yourself.
+2. Keep your response brief and to the point. 
+3. Use short paragraphs and bullet points where appropriate.
+4. Total response should be under 200 words.
 """
 
 ORCHESTRATOR_INSTRUCTIONS = """
@@ -120,9 +128,11 @@ Analyze the user's input and decide which specialist agent should handle it. Do 
 
 When greeting a user for the first time, use a reflective, narrative tone that invites them to share their entrepreneurial journey and challenges.
 
-IMPORTANT FORMAT INSTRUCTION: Keep your response brief and to the point. 
-Use short paragraphs and bullet points where appropriate.
-Total response should be under 200 words.
+IMPORTANT FORMAT INSTRUCTION: 
+1. Always begin your responses with "**Orchestrator**:" to identify yourself.
+2. Keep your response brief and to the point. 
+3. Use short paragraphs and bullet points where appropriate.
+4. Total response should be under 200 words.
 """
 
 # Define specialist agents with handoff descriptions
@@ -225,12 +235,22 @@ def get_agent_response(user_message: str, conversation_history: Optional[List[Di
         # This might need adjustment based on how you track the active agent
         agent_name = "OrchestratorAgent"  # Default fallback
         
-        # In SDK 0.0.12, we can't easily get the agent name directly
-        # We can try to infer it from the content, or add to the conversation explicitly
-        for agent in [strategy_agent, creative_agent, production_agent, media_agent]:
-            if f"**{agent.name}**" in assistant_reply or f"*{agent.name}*" in assistant_reply:
-                agent_name = agent.name
-                break
+        # Try to determine which agent was used based on content markers
+        # Each specialist agent should identify itself in its response
+        if "**StrategyAgent**" in assistant_reply or "Strategy Agent" in assistant_reply:
+            agent_name = "StrategyAgent"
+        elif "**CreativeAgent**" in assistant_reply or "Creative Agent" in assistant_reply:
+            agent_name = "CreativeAgent"
+        elif "**ProductionAgent**" in assistant_reply or "Production Agent" in assistant_reply:
+            agent_name = "ProductionAgent"
+        elif "**MediaAgent**" in assistant_reply or "Media Agent" in assistant_reply:
+            agent_name = "MediaAgent"
+        else:
+            # Look at signature patterns as fallback
+            for agent in [strategy_agent, creative_agent, production_agent, media_agent]:
+                if agent.name in assistant_reply:
+                    agent_name = agent.name
+                    break
         
         return {
             "reply": assistant_reply,
