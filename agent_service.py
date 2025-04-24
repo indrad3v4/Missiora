@@ -99,6 +99,10 @@ def get_agent_response(user_message, message_history=None, user_info=None):
         str: The agent's response
     """
     try:
+        # Limit message length to prevent token issues
+        if user_message and len(user_message) > 500:
+            user_message = user_message[:500] + "..."
+        
         # Create context information
         context = create_context(user_info)
         
@@ -154,7 +158,8 @@ def determine_agents(user_message, context=""):
             model=Config.DEFAULT_AGENT_MODEL,  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
             messages=[{"role": "user", "content": prompt}],
             response_format={"type": "json_object"},
-            temperature=0.2
+            temperature=0.2,
+            max_tokens=300  # Reduced token limit for agent selection
         )
         
         result = json.loads(response.choices[0].message.content)
@@ -212,12 +217,12 @@ def call_specialized_agent(agent_type, user_message, message_history, context, r
     # Add current user message
     messages.append({"role": "user", "content": user_message})
     
-    # Call OpenAI API
+    # Call OpenAI API with reduced token limits
     response = client.chat.completions.create(
         model=Config.DEFAULT_AGENT_MODEL,  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
         messages=messages,
         temperature=0.7,
-        max_tokens=1000
+        max_tokens=500  # Reduced token limit to prevent errors
     )
     
     # Extract and return response content
@@ -247,7 +252,7 @@ Your task is to synthesize these responses using the contradiction-resolution fr
 
 Provide your combined response to the user, structuring it to address these contradiction-resolution steps:"""
 
-    # Call OpenAI API
+    # Call OpenAI API with reduced token limits
     response = client.chat.completions.create(
         model=Config.DEFAULT_AGENT_MODEL,  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
         messages=[
@@ -255,7 +260,7 @@ Provide your combined response to the user, structuring it to address these cont
             {"role": "user", "content": combine_prompt}
         ],
         temperature=0.7,
-        max_tokens=1500
+        max_tokens=500  # Reduced token limit to prevent errors
     )
     
     # Extract and return response content
