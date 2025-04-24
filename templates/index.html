@@ -566,9 +566,9 @@
             const message = input.value.trim();
             if (!message) return;
             
-            // If not authenticated, prompt to connect first
-            if (!isAuthenticated) {
-                showChatMessage("Please connect with MetaMask first to use the AI assistant.", false);
+            // Only require MetaMask after MAX_FREE_MESSAGES
+            if (messageCount >= MAX_FREE_MESSAGES && !isAuthenticated) {
+                showChatMessage("You've reached the message limit. Please connect with MetaMask to continue chatting with the AI agent.", false);
                 return;
             }
             
@@ -602,6 +602,18 @@
                 if (response.ok) {
                     const data = await response.json();
                     addAssistantMessage(data.response);
+                    
+                    // Increment message count only for non-authenticated users
+                    if (!isAuthenticated) {
+                        messageCount++;
+                        
+                        // Show warning when approaching limit
+                        if (messageCount === MAX_FREE_MESSAGES - 2) {
+                            showChatMessage("You have 2 more free messages. Connect with MetaMask for unlimited access.", false);
+                        } else if (messageCount === MAX_FREE_MESSAGES - 1) {
+                            showChatMessage("This is your last free message. Connect with MetaMask for unlimited access.", false);
+                        }
+                    }
                 } else {
                     throw new Error('Failed to get response from assistant');
                 }
@@ -658,8 +670,9 @@
         
         // For suggested questions
         window.suggestedQuestion = function(question) {
-            if (!isAuthenticated) {
-                showChatMessage("Please connect with MetaMask first to use the AI assistant.", false);
+            // Check message limit (applying same limit as direct input)
+            if (messageCount >= MAX_FREE_MESSAGES && !isAuthenticated) {
+                showChatMessage("You've reached the message limit. Please connect with MetaMask to continue chatting with the AI agent.", false);
                 return;
             }
             
