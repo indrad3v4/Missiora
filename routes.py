@@ -346,12 +346,29 @@ def public_chat():
         # Retrieve conversation history from session
         conversation_history = session.get('conversation_history')
         
+        # Check for free usage count or MetaMask authentication
+        free_message_count = session.get('free_message_count', 0)
+        
         # If we have an ethereum address, try to find the user for personalization
         if address and not current_user.is_authenticated:
             user = User.query.filter_by(ethereum_address=address.lower()).first()
             if user:
                 # Use authenticated user with MetaMask
                 login_user(user, remember=True)
+                # Reset free message count if user is authenticated
+                free_message_count = 0
+        else:
+            # If no address and not authenticated, increment free message count
+            if not current_user.is_authenticated:
+                free_message_count += 1
+                session['free_message_count'] = free_message_count
+                
+                # If over limit, require MetaMask login
+                if free_message_count > 10:  # Allow 10 free messages
+                    return jsonify({
+                        'error': 'Free message limit reached. Please connect with MetaMask to continue.',
+                        'require_metamask': True
+                    }), 403
         
         # Store message in database if user is authenticated
         if current_user.is_authenticated:
@@ -386,7 +403,6 @@ def public_chat():
         result = get_agent_response(user_message, conversation_history)
         
         # Store the updated conversation history for next turn
-        # The SDK in 0.0.12 provides this via result.to_input_list()
         session['conversation_history'] = result.get('conversation_history')
         
         # If user is logged in, save the AI response to the database
@@ -408,7 +424,8 @@ def public_chat():
         
         return jsonify({
             'reply': result['reply'],
-            'agent': result['agent']
+            'agent': result['agent'],
+            'free_messages_remaining': 10 - free_message_count if not current_user.is_authenticated else None
         })
     
     except Exception as e:

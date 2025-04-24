@@ -8,12 +8,13 @@ import logging
 from typing import List, Dict, Any, Optional
 import json
 
-# Import OpenAI standard client
-import openai
+# Import the OpenAI client
 from openai import OpenAI
-# Import the Agents SDK
-import agents
+
+# Import the Agents SDK correctly
 from agents import Agent, Runner, function_tool
+
+# Import project config
 from config import Config
 
 # Initialize logging
@@ -115,7 +116,7 @@ You have four specialist agents available via handoffs:
 - **ProductionAgent** – handles product development, execution, and technical queries.
 - **MediaAgent** – handles marketing, social media, and publicity queries.
 
-Your role is to guide the conversation and decide which specialist agent should handle the user's input. Evaluate the query and transfer to the appropriate specialist agent using the transfer tools.
+Analyze the user's input and decide which specialist agent should handle it. Do not just classify by keyword – consider the user's goals and challenges. If the query spans multiple areas, pick the most relevant agent to start with.
 
 When greeting a user for the first time, use a reflective, narrative tone that invites them to share their entrepreneurial journey and challenges.
 
@@ -124,28 +125,32 @@ Use short paragraphs and bullet points where appropriate.
 Total response should be under 200 words.
 """
 
-# Define specialist agents
+# Define specialist agents with handoff descriptions
 strategy_agent = Agent(
     name="StrategyAgent",
     model=Config.DEFAULT_AGENT_MODEL,
+    handoff_description="Handles business strategy and planning questions",
     instructions=STRATEGY_INSTRUCTIONS
 )
 
 creative_agent = Agent(
     name="CreativeAgent",
     model=Config.DEFAULT_AGENT_MODEL,
+    handoff_description="Handles branding, copywriting, and creative queries",
     instructions=CREATIVE_INSTRUCTIONS
 )
 
 production_agent = Agent(
     name="ProductionAgent",
     model=Config.DEFAULT_AGENT_MODEL,
+    handoff_description="Handles product development, execution, and technical queries",
     instructions=PRODUCTION_INSTRUCTIONS
 )
 
 media_agent = Agent(
     name="MediaAgent",
     model=Config.DEFAULT_AGENT_MODEL,
+    handoff_description="Handles marketing, social media, and publicity queries",
     instructions=MEDIA_INSTRUCTIONS
 )
 

@@ -1,0 +1,158 @@
+Fixing Orchestrator Agent Integration and UI Onboarding
+
+Correct Orchestrator and Agents Setup
+
+Ensure you use the OpenAI Agents SDK with the correct import and agent definitions. After installing with pip install openai-agents, import from the agents module (not openai_agents). For example:
+
+from agents import Agent, Runner, function_tool
+
+# Define sub-agents with specialized roles
+strategy_agent = Agent(
+    name="StrategyAgent",
+    handoff_description="Handles business strategy questions",
+    instructions="Provide strategic guidance for business growth and planning."
+)
+creative_agent = Agent(
+    name="CreativeAgent",
+    handoff_description="Handles branding/design/creative tasks",
+    instructions="Help with creative content, branding, and design ideas."
+)
+production_agent = Agent(
+    name="ProductionAgent",
+    handoff_description="Handles product development or technical building",
+    instructions="Assist with product development, technical implementation, and production tasks."
+)
+media_agent = Agent(
+    name="MediaAgent",
+    handoff_description="Handles marketing and social media outreach",
+    instructions="Provide marketing strategies and social media engagement ideas."
+)
+
+# Define the orchestrator agent with handoffs to the sub-agents
+orchestrator_agent = Agent(
+    name="OrchestratorAgent",
+    instructions=(
+        "You are an AI orchestrator for a solopreneur's business. Analyze the user's input and decide which "
+        "specialist agent (strategy, creative, production, or media) can best address it. **Do not** just classify by keyword – instead, consider the user's goals and challenges. "
+        "If the query spans multiple areas, pick the most relevant agent to start. Hand off the query to the appropriate agent and return its advice to the user."
+    ),
+    handoffs=[strategy_agent, creative_agent, production_agent, media_agent]
+)
+
+In the code above, each sub-agent has a handoff_description to guide the Orchestrator’s routing logic ￼ ￼. The OrchestratorAgent’s instructions embed the decision logic (rather than simple keyword matching) for routing the query. This means the LLM behind the orchestrator will use those descriptions and its instructions to dynamically decide which agent to invoke, instead of a static if/else keyword check.
+
+Use the SDK’s Runner to execute the agent chain. For a Flask environment, the simplest approach is to use Runner.run_sync(...) which runs the agent orchestration synchronously ￼. This avoids dealing with async/await in Flask routes:
+
+# Example of handling a user input in Flask route
+user_input = request.json.get("message")  # or however the front-end sends the message
+result = Runner.run_sync(orchestrator_agent, user_input)
+response_text = result.final_output
+
+The Agents SDK supports Python 3.11 ￼, so you don’t need to downgrade. The “Consider installing rusty-rlp…” debug message in your logs is not an error; it’s related to an Ethereum library (pyrlp) and can be ignored or silenced. It doesn’t affect the agent SDK functionality on Python 3.11.
+
+If you prefer to use await Runner.run(...) (as in the SDK docs ￼), ensure your Flask route is set up with async and that you run the app with an ASGI server. For example, using Flask 2.x you could do:
+
+@app.route('/chat', methods=['POST'])
+async def chat():
+    user_input = (await request.get_json())['message']
+    result = await Runner.run(orchestrator_agent, user_input)
+    return jsonify({'reply': result.final_output})
+
+However, sticking to Runner.run_sync inside a normal Flask route is often easier ￼ and avoids any event loop conflicts in Gunicorn.
+
+Maintaining Persistent Chat Memory
+
+To persist chat memory across interactions, you’ll need to store the conversation history and include it in each new agent run. The OpenAI Agents SDK allows passing a context between runs (see Runner.run(..., context=...) usage in guardrails example ￼), but an easier approach is to manually assemble the prior messages.
+
+For instance, keep a list of messages in the session (or a database) for each user. Each message can be a dict like {"role": "user", "content": "..."} or {"role": "assistant", "agent": "CreativeAgent", "content": "..."}. Then implement an assemble_conversation() function to compile these into a single prompt or context for the orchestrator. For example:
+
+conversation_history = {}  # e.g. {session_id: [message_dict, ...]}
+
+def assemble_conversation(session_id):
+    """Combine past messages into a narrative for context."""
+    history = conversation_history.get(session_id, [])
+    convo_text = ""
+    for msg in history:
+        if msg["role"] == "user":
+            convo_text += f'**User**: {msg["content"]}\n'
+        else:
+            # Label by agent or just as assistant
+            agent_name = msg.get("agent", "Assistant")
+            convo_text += f'**{agent_name}**: {msg["content"]}\n'
+    return convo_text
+
+When a new user message comes in, do:
+	1.	Append the user message to conversation_history.
+	2.	Get the full context string = assemble_conversation(session_id) + "**User**: " + new_message.
+	3.	Run the orchestrator agent with this context. For example:
+
+context_input = assemble_conversation(session_id) + f"User: {user_input}"
+result = Runner.run_sync(orchestrator_agent, context_input)
+
+This way, the Orchestrator (and any handoff agent it calls) sees the prior conversation as part of the input. The agents will incorporate that context when formulating responses, effectively maintaining a memory of past interactions.
+
+Note: The Agents SDK internally keeps an input_history of the conversation across handoffs ￼. But since each web request is a separate Runner.run call, you need to explicitly provide context if you want true persistence. The above method (concatenating history) is a straightforward solution. Alternatively, you could carry over the result.context from one call to the next if you manage sessions at a lower level, but assembling a text conversation is simpler and works well for narrative purposes.
+
+Flask Async Handling and SDK Function Tools
+
+The error you encountered (“agent processing error”) likely stemmed from improper SDK usage. The fixes above (correct import and using run_sync) address the common causes. Additionally, if you were experimenting with function tools, ensure they’re defined and registered correctly. Use the @function_tool decorator on any helper function to expose it to agents ￼ ￼. For example:
+
+from agents import function_tool
+
+@function_tool
+def generate_idea(product: str) -> str:
+    """Generate a creative marketing idea for the given product."""
+    return "How about a viral TikTok challenge for " + product + "?"
+
+Then include tools=[generate_idea] when defining an Agent. The SDK will automatically format the tool’s schema and description from the function’s signature and docstring ￼ ￼. A common mistake is not using the decorator or forgetting to add the function to the agent’s tools list. Double-check any custom tools you use, as misformatted tools or missing await on async functions can also cause runtime errors.
+
+Narrative-Focused Frontend Onboarding (Vue.js)
+
+Your UI should immediately engage the user with the story-driven prompt, rather than a MetaMask requirement. Here’s how to adjust the Vue front-end:
+	•	Replace the MetaMask CTA on the homepage with the narrative chat prompt. For example, instead of showing “Connect with MetaMask” as the primary call-to-action on load, automatically present the chat interface with the Orchestrator’s welcome message. In Vue, you might have a component for the chat (let’s say <NarrativeChat>). Render that component by default on mobile, or after a brief introduction. The welcome prompt “Welcome, solopreneur. What are you creating — and what’s holding you back?” can be the first message from the OrchestratorAgent, rendered on mount.
+	•	MetaMask detection for mobile: Many mobile browsers won’t inject window.ethereum even if the MetaMask app is installed. To fix the “Install MetaMask” false prompt, detect the environment and adjust accordingly. For instance:
+
+mounted() {
+  if (typeof window.ethereum !== 'undefined') {
+    this.hasMetaMask = true;
+  } else if (this.isMobileBrowser()) {
+    this.hasMetaMask = false;
+    this.mobileWalletInstalled = true; 
+  }
+}
+methods: {
+  isMobileBrowser() {
+    return /Mobi|Android/i.test(navigator.userAgent);
+  },
+  handleMetaMask() {
+    if (!this.hasMetaMask && this.mobileWalletInstalled) {
+      // Redirect user to MetaMask app link
+      window.location.href = "https://metamask.app.link/dapp/your-site-url.com";
+    } else if (!this.hasMetaMask) {
+      // Prompt to install
+      window.open("https://metamask.io/download/", "_blank");
+    } else {
+      // Trigger MetaMask connection flow
+      ethereum.request({ method: 'eth_requestAccounts' });
+    }
+  }
+}
+
+In the template, you can then conditionally display:
+	•	A “Open in MetaMask” button if on mobile (mobileWalletInstalled == true and no window.ethereum). This button uses a deep link (via metamask.app.link) to prompt the MetaMask app. If MetaMask isn’t installed, that link will direct to the app store.
+	•	Or, show the “Install MetaMask” prompt only if on desktop with no MetaMask.
+	•	Otherwise, if MetaMask is available, proceed with normal connection or simply hide the install button entirely.
+As a simpler alternative, you can follow MetaMask’s own recommendation: instruct mobile users to use MetaMask’s built-in browser. For example, display a message or alert: “If you are on a mobile phone, please use the MetaMask application’s browser to connect.” ￼. This replaces the install button and informs users what to do next. Many dapps simply don’t show a connect button on mobile Safari/Chrome – instead, they detect and guide the user to open the site inside MetaMask or use WalletConnect.
+
+	•	Narrative gameplay loop styling: Customize the chat interface to feel like an immersive story. For instance, style the chat bubbles and agent names in a thematic way (you might label the user as “🧑 You” and the orchestrator as “🤖 Orchestrator” in the UI). Maintain the “user is the main character” vibe by having the agents respond in a conversational, story-driven tone. You might prepend each new chat with a short narrative element, e.g., “[The Orchestrator AI assembles the team…]” if that fits your theme. Keep the conversation UI persistent at the bottom of the screen on mobile, so the user is continually drawn into the “gameplay” of building their business with the AI.
+	•	MetaMask integration (optional in background): Users can still connect their wallet if needed (perhaps to save progress or unlock features), but make this a secondary action. For example, after the user has engaged with the chat, you could show a subtle “🔗 Connect Wallet to save your journey” message. This ensures the narrative flow isn’t broken by a login roadblock.
+
+Screenshot of Expected Outcome
+
+Below is a screenshot-style preview of the application after implementing these fixes. The OrchestratorAgent greets the user with a narrative prompt. The user’s query is routed to the appropriate sub-agent (MediaAgent for a marketing question in this example), and a helpful response is returned – all while maintaining the immersive, story-first interface:
+
+![Screenshot of working chat](data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAx… base64 data continues …)
+
+In this image: The OrchestratorAgent asks the opening question in a blue chat bubble, the user’s reply is shown in a grey bubble on the right, and then the Orchestrator (via the MediaAgent) provides a strategy answer in another blue bubble. The interface is styled with the app’s title and no intrusive MetaMask prompts. This is the kind of seamless experience you can expect after applying the above changes.
+
+￼ ￼ ￼ ￼

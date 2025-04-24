@@ -6,9 +6,15 @@ export default {
     <div class="chat-container">
       <!-- Chat messages -->
       <div class="messages-container" ref="messagesContainer">
-        <div v-for="msg in messages" :key="msg.id" class="message" :class="msg.role">
+        <div v-for="msg in messages" 
+             :key="msg.id" 
+             class="message" 
+             :class="msg.role"
+             :data-agent="msg.agent">
+          <div class="message-header" v-if="msg.agent && msg.agent !== 'user'">
+            <span class="agent-badge">{{ formatAgentName(msg.agent) }}</span>
+          </div>
           <div class="message-text" v-html="formatMessage(msg.text)"></div>
-          <div v-if="msg.agent && msg.agent !== 'user'" class="agent-badge">{{ msg.agent }}</div>
         </div>
         <div v-if="isTyping" class="message agent typing-indicator">
           <div class="dots"><span>.</span><span>.</span><span>.</span></div>
@@ -22,7 +28,7 @@ export default {
             <input 
               type="text" 
               v-model="userInput" 
-              :disabled="isTyping || (messageCount >= MAX_FREE_MESSAGES && !isAuthenticated)"
+              :disabled="isTyping || requireMetaMask"
               class="form-control" 
               placeholder="Type your response..." 
               ref="inputField"
@@ -30,17 +36,31 @@ export default {
             <button 
               type="submit" 
               class="btn btn-primary" 
-              :disabled="isTyping || !userInput || (messageCount >= MAX_FREE_MESSAGES && !isAuthenticated)"
+              :disabled="isTyping || !userInput || requireMetaMask"
             >
               <i class="fas fa-paper-plane"></i>
             </button>
           </div>
         </form>
-        <div v-if="messageCount >= MAX_FREE_MESSAGES - 2 && !isAuthenticated" class="message-limit-warning">
-          {{ messageCount === MAX_FREE_MESSAGES - 1 ? 
-            "This is your last free message. Connect with MetaMask for unlimited access." : 
-            "You have " + (MAX_FREE_MESSAGES - messageCount) + " more free messages. Connect with MetaMask for unlimited access." 
-          }}
+        
+        <!-- Free message counter -->
+        <div v-if="freeMessagesRemaining !== null && freeMessagesRemaining <= 2" class="message-limit-warning">
+          <span v-if="freeMessagesRemaining === 0">
+            You've reached the free message limit.
+            <button @click="connectMetaMask" class="btn btn-sm btn-outline-primary">Connect with MetaMask</button>
+            to continue.
+          </span>
+          <span v-else>
+            You have {{ freeMessagesRemaining }} free {{ freeMessagesRemaining === 1 ? 'message' : 'messages' }} remaining.
+            <button @click="connectMetaMask" class="btn btn-sm btn-outline-primary">Connect with MetaMask</button>
+            for unlimited access.
+          </span>
+        </div>
+        
+        <!-- MetaMask connection required message -->
+        <div v-if="requireMetaMask" class="metamask-required-message">
+          <p>Free message limit reached. Please connect with MetaMask to continue.</p>
+          <button @click="connectMetaMask" class="btn btn-primary">Connect with MetaMask</button>
         </div>
       </div>
     </div>
@@ -51,10 +71,10 @@ export default {
       messages: [],
       userInput: '',
       isTyping: false,
-      messageCount: 0,
+      freeMessagesRemaining: null,
+      requireMetaMask: false,
       isAuthenticated: false,
-      userAddress: null,
-      MAX_FREE_MESSAGES: 10
+      userAddress: null
     }
   },
   
@@ -119,19 +139,8 @@ export default {
     },
     
     async sendMessage() {
-      if (!this.userInput.trim()) return;
-      
-      // Check for message limit
-      if (this.messageCount >= this.MAX_FREE_MESSAGES && !this.isAuthenticated) {
-        this.addMessage({
-          id: Date.now(),
-          role: 'agent',
-          agent: 'OrchestratorAgent',
-          text: "You've reached the message limit. Please connect with MetaMask to continue chatting with the AI agent."
-        });
-        return;
-      }
-      
+      if (!this.userInput.trim() || this.requireMetaMask) return;
+            
       const userMessage = this.userInput.trim();
       this.userInput = '';
       
@@ -159,17 +168,29 @@ export default {
           const data = await response.json();
           console.log("Received response:", data);
           
+          // Update free messages remaining (for non-authenticated users)
+          if (data.free_messages_remaining !== undefined && data.free_messages_remaining !== null) {
+            this.freeMessagesRemaining = data.free_messages_remaining;
+          }
+          
           this.addMessage({
             id: Date.now(),
             role: 'agent',
             agent: data.agent || 'OrchestratorAgent',
             text: data.reply
           });
+        } else if (response.status === 403 && response.statusText.includes("MetaMask")) {
+          // Handle case where server requires MetaMask auth
+          const errorData = await response.json();
+          console.log("Authentication required:", errorData);
+          this.requireMetaMask = true;
           
-          // Increment message count for non-authenticated users
-          if (!this.isAuthenticated) {
-            this.messageCount++;
-          }
+          this.addMessage({
+            id: Date.now(),
+            role: 'agent',
+            agent: 'OrchestratorAgent',
+            text: "You've reached your free message limit. Please connect with MetaMask to continue using the AI agency."
+          });
         } else {
           const errorData = await response.json();
           console.error("API error:", errorData);
@@ -191,6 +212,47 @@ export default {
       }
     },
     
+    connectMetaMask() {
+      // If MetaMask is available, request account access
+      if (window.ethereum) {
+        window.ethereum
+          .request({ method: 'eth_requestAccounts' })
+          .then(accounts => {
+            if (accounts.length > 0) {
+              this.userAddress = accounts[0];
+              this.isAuthenticated = true;
+              this.requireMetaMask = false;
+              
+              // Dispatch an event for other components
+              window.dispatchEvent(
+                new CustomEvent('metamaskConnected', { 
+                  detail: { 
+                    address: accounts[0] 
+                  }
+                })
+              );
+            }
+          })
+          .catch(error => {
+            console.error('MetaMask connection error:', error);
+            alert('Could not connect to MetaMask. Please try again.');
+          });
+      } else {
+        // MetaMask is not installed
+        if (this.isMobileBrowser()) {
+          // On mobile, open MetaMask app or app store
+          window.location.href = `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}`;
+        } else {
+          // On desktop, open MetaMask download page
+          window.open('https://metamask.io/download/', '_blank');
+        }
+      }
+    },
+    
+    isMobileBrowser() {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    },
+    
     addMessage(message) {
       this.messages.push(message);
       // Scroll to the bottom
@@ -203,10 +265,32 @@ export default {
     
     formatMessage(text) {
       // Convert line breaks to <br> tags and format bullet points
+      if (!text) return '';
+      
       return text
         .replace(/\n/g, '<br>')
         .replace(/• (.*?)(?=<br>|$)/g, '<li>$1</li>') // Convert bullet points to list items
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); // Bold markdown
+    },
+    
+    formatAgentName(agentName) {
+      // Add emoji based on agent type
+      if (!agentName) return '🤖 AI Assistant';
+      
+      switch (agentName) {
+        case 'OrchestratorAgent':
+          return '🧠 Orchestrator';
+        case 'StrategyAgent':
+          return '📊 Strategy';
+        case 'CreativeAgent':
+          return '🎨 Creative';
+        case 'ProductionAgent':
+          return '⚙️ Production';
+        case 'MediaAgent':
+          return '📣 Media';
+        default:
+          return `🤖 ${agentName}`;
+      }
     },
     
     checkMetaMaskConnection() {

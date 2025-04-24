@@ -44,6 +44,13 @@
   background-color: #f0f8ff;
   border-bottom-left-radius: 0.25rem;
   align-self: flex-start;
+  border-left: 3px solid #4a90e2;
+}
+
+.message-header {
+  margin-bottom: 0.3rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
 }
 
 .message-text {
@@ -56,10 +63,40 @@
 }
 
 .agent-badge {
-  font-size: 0.7rem;
-  color: #6c757d;
-  margin-top: 0.5rem;
-  text-align: right;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #4a90e2;
+  display: inline-block;
+  padding: 0.2rem 0;
+}
+
+/* Agent-specific styles */
+.message.agent[data-agent="StrategyAgent"] {
+  border-left-color: #28a745;
+}
+.message.agent[data-agent="StrategyAgent"] .agent-badge {
+  color: #28a745;
+}
+
+.message.agent[data-agent="CreativeAgent"] {
+  border-left-color: #fd7e14;
+}
+.message.agent[data-agent="CreativeAgent"] .agent-badge {
+  color: #fd7e14;
+}
+
+.message.agent[data-agent="ProductionAgent"] {
+  border-left-color: #6f42c1;
+}
+.message.agent[data-agent="ProductionAgent"] .agent-badge {
+  color: #6f42c1;
+}
+
+.message.agent[data-agent="MediaAgent"] {
+  border-left-color: #dc3545;
+}
+.message.agent[data-agent="MediaAgent"] .agent-badge {
+  color: #dc3545;
 }
 
 .input-area {
@@ -117,10 +154,45 @@
 }
 
 .message-limit-warning {
-  font-size: 0.8rem;
-  color: #dc3545;
-  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin-top: 0.7rem;
   text-align: center;
+  padding: 0.5rem;
+  background-color: #f8f9fa;
+  border-radius: 0.5rem;
+}
+
+.message-limit-warning button {
+  margin: 0 0.3rem;
+}
+
+.metamask-required-message {
+  text-align: center;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 0.5rem;
+  margin-top: 1rem;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  border: 1px solid #e9ecef;
+}
+
+.metamask-required-message p {
+  margin-bottom: 0.7rem;
+  color: #6c757d;
+}
+
+.metamask-required-message button {
+  background-color: #ff9c07;
+  border-color: #ff9c07;
+  transition: all 0.2s ease;
+}
+
+.metamask-required-message button:hover {
+  background-color: #f08c00;
+  border-color: #f08c00;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
 /* Mobile Optimization */
