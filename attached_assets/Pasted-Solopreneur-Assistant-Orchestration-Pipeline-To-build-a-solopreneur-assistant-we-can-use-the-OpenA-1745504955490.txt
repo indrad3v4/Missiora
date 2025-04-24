@@ -1,0 +1,154 @@
+Solopreneur Assistant Orchestration Pipeline
+
+To build a solopreneur assistant, we can use the OpenAI Agents SDK with multiple specialized sub-agents and an orchestrator. The orchestrator will delegate user queries to the appropriate sub-agent and maintain conversation context across turns. Below is a full example implementation in Python, using Flask for the backend:
+
+from agents import Agent, Runner  # OpenAI Agents SDK classes (pip install openai-agents)
+from flask import Flask, request, jsonify
+
+# --- 1. Define specialized sub-agents for each domain ---
+strategy_agent = Agent(
+    name="StrategyAgent",
+    instructions=(
+        "You are **StrategyAgent**, an expert in business strategy, planning, and market positioning. "
+        "Provide clear, actionable strategic advice and frameworks to help solopreneurs succeed."
+    )
+    # (Optionally, you could add tools specific to strategy if needed)
+)
+creative_agent = Agent(
+    name="CreativeAgent",
+    instructions=(
+        "You are **CreativeAgent**, an expert in creative ideation, branding, and copywriting. "
+        "Generate innovative branding ideas, marketing copy, and creative content to support solopreneurs."
+    )
+)
+production_agent = Agent(
+    name="ProductionAgent",
+    instructions=(
+        "You are **ProductionAgent**, an expert in product development and execution. "
+        "Give technical advice, process improvements, and step-by-step plans to build and deliver offerings."
+    )
+)
+media_agent = Agent(
+    name="MediaAgent",
+    instructions=(
+        "You are **MediaAgent**, an expert in digital marketing, social media, and content distribution. "
+        "Provide guidance on social media strategy, content creation, and marketing campaigns."
+    )
+)
+
+# --- 2. Define the Orchestrator agent with embedded sub-agents as tools ---
+orchestrator_agent = Agent(
+    name="OrchestratorAgent",
+    instructions=(
+        "You are the **OrchestratorAgent**, coordinating a solopreneur assistant with specialized agents. "
+        "Analyze the user's query and decide which expert agent (Strategy, Creative, Production, Media) is best suited to handle it. "
+        "Use the corresponding agent's tool to get the answer, then respond with a helpful final answer. "
+        "Always delegate to the correct sub-agent tool for domain-specific questions (strategy, creative, production, media), rather than answering directly. "
+        "If a query spans multiple domains, you may call multiple tools in sequence. Maintain context from prior conversations for continuity."
+    ),
+    tools=[
+        strategy_agent.as_tool(
+            tool_name="strategy_agent",
+            tool_description="Handles business strategy and positioning questions."
+        ),
+        creative_agent.as_tool(
+            tool_name="creative_agent",
+            tool_description="Handles creative ideation, branding, and copywriting questions."
+        ),
+        production_agent.as_tool(
+            tool_name="production_agent",
+            tool_description="Handles product development and execution questions."
+        ),
+        media_agent.as_tool(
+            tool_name="media_agent",
+            tool_description="Handles marketing, social media, and content distribution questions."
+        )
+    ]
+    # (All sub-agents are embedded as tools, allowing the orchestrator to call them in one Agent run)
+)
+
+# --- 3. Helper function to assemble conversation context and run the orchestrator ---
+async def assemble_conversation(previous_result, new_input):
+    """
+    Build a prompt that includes prior conversation context (if any) and run the orchestrator agent.
+    :param previous_result: The previous conversation context (could be a list of Q&A pairs, a string, or result object from last run).
+    :param new_input: The new user message (string).
+    :return: Result object from running the orchestrator agent on the assembled input.
+    """
+    # Include persistent memory from previous interactions, if available
+    if previous_result:
+        if isinstance(previous_result, list):
+            # previous_result is a list of dicts like {"user": ..., "assistant": ...} representing conversation history
+            past_dialogue_lines = []
+            for turn in previous_result:
+                past_dialogue_lines.append(f"User asked: {turn['user']}")
+                past_dialogue_lines.append(f"Assistant answered: {turn['assistant']}")
+            past_dialogue = "\n".join(past_dialogue_lines)
+            orchestrator_input = f"{past_dialogue}\nCurrent user query: {new_input}"
+        else:
+            # previous_result is a string (last assistant answer) or a Result object
+            prev_text = previous_result if isinstance(previous_result, str) else previous_result.final_output
+            orchestrator_input = f"Previous assistant response: {prev_text}\nCurrent user query: {new_input}"
+    else:
+        # No prior context, start fresh
+        orchestrator_input = new_input
+
+    # Run the OrchestratorAgent with the assembled prompt. This will internally use sub-agents via tools.
+    result = await Runner.run(orchestrator_agent, input=orchestrator_input)
+    return result
+
+# --- 4. Flask app and async route for the chat API ---
+app = Flask(__name__)
+
+# Simple in-memory store for conversation history per user (for demonstration purposes)
+conversation_memory = {}
+
+@app.route('/api/chat', methods=['POST'])
+async def chat_route():
+    # Parse the incoming request JSON
+    data = await request.get_json()  # get JSON payload asynchronously (requires Flask 2.x+ for async support)
+    user_message = data.get("message", "")
+    user_id = data.get("user_id", "default")  # identifier for the user/session (use "default" if not provided)
+
+    # Retrieve previous conversation turns for this user (if any) to maintain persistent memory
+    history = conversation_memory.get(user_id)
+
+    # Run the orchestrator agent with the assembled conversation (previous history + new input)
+    result = await assemble_conversation(history, user_message)
+    assistant_answer = result.final_output  # The assistant's answer text
+
+    # Update the conversation history for this user
+    if history is not None:
+        # Append the new Q&A turn to existing history
+        history.append({"user": user_message, "assistant": assistant_answer})
+    else:
+        # Start a new history list with the first turn
+        conversation_memory[user_id] = [{"user": user_message, "assistant": assistant_answer}]
+
+    # Return the assistant's answer as a JSON response
+    return jsonify({"response": assistant_answer})
+
+In the code above:
+	•	Sub-agents (StrategyAgent, CreativeAgent, ProductionAgent, MediaAgent) are created with domain-specific instructions (you can also equip them with their own tools if needed).
+	•	The OrchestratorAgent is configured with instructions to reflect on the user’s query and delegate to the appropriate sub-agent. Each sub-agent is exposed as a tool via .as_tool(), so the orchestrator can call them within a single reasoning loop.
+	•	The orchestrator uses the Agents SDK’s built-in tool-calling mechanism: it will choose one of the provided tools based on the query (using the prompt instructions as guidance), call that tool (which invokes the corresponding sub-agent), and then return the final answer.
+	•	We maintain persistent memory by storing a history of user queries and assistant answers in conversation_memory. The assemble_conversation function combines past dialogue with the new user input so that the orchestrator is aware of context from previous interactions.
+	•	The Flask route (POST /api/chat) demonstrates how to receive a user message, retrieve prior context, run the orchestrator asynchronously, update memory, and return the response. (In a real application, you might use a database or session store for memory instead of an in-memory dict, especially for multiple users or persistent sessions.)
+
+Example Interaction
+
+For example, if the user asks a strategy-related question, the orchestrator delegates to the StrategyAgent:
+
+Request (POST /api/chat):
+
+{ "message": "I don't know how to position my offer" }
+
+Internal Orchestrator Reasoning: (OrchestratorAgent decides this query is about business strategy and uses the strategy_agent tool, which invokes the StrategyAgent.)
+
+Response:
+
+{
+  "response": "To position your offer effectively, start by defining your target audience and their key needs. Identify what makes your offer unique (your value proposition) and emphasize that in your messaging. Clearly communicate how your product solves your audience’s problem better than competitors."
+}
+
+In this interaction, the orchestrator recognized the query as a strategy question, called the StrategyAgent tool to get specialized advice, and returned the StrategyAgent’s answer to the user. Subsequent questions in the conversation would include the above exchange as context, enabling the assistant to provide continuity in its responses.

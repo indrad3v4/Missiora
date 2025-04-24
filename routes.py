@@ -12,8 +12,7 @@ from eth_account.messages import encode_defunct
 
 @app.route('/')
 def index():
-    if current_user.is_authenticated:
-        return redirect(url_for('dashboard'))
+    # Always show the main AI interface with MetaMask connection prompt
     return render_template('index.html')
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -309,3 +308,61 @@ def toggle_goal(goal_id):
 def insights():
     insights = UserInsight.query.filter_by(user_id=current_user.id).order_by(UserInsight.created_at.desc()).all()
     return render_template('insights.html', insights=insights)
+
+# New non-authenticated API endpoint for the AI chat on the homepage
+@app.route('/api/chat', methods=['POST'])
+def public_chat():
+    """API endpoint for the public chat feature that works without login"""
+    try:
+        data = request.json
+        if not data or 'message' not in data:
+            return jsonify({'error': 'Message content is required'}), 400
+        
+        user_message = data.get('message')
+        address = data.get('address')
+        
+        # Optional: Store chat history in session for anonymous users
+        message_history = session.get('chat_history', [])
+        
+        # If we have an ethereum address, try to find the user for personalization
+        user_info = None
+        if address:
+            user = User.query.filter_by(ethereum_address=address.lower()).first()
+            if user:
+                # Use user profile for context if available
+                user_info = {
+                    'username': user.username,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'bio': user.bio,
+                    'business_name': user.business_name,
+                    'business_description': user.business_description
+                }
+                
+                # Get last conversation if exists for context
+                last_conversation = Conversation.query.filter_by(user_id=user.id).order_by(Conversation.updated_at.desc()).first()
+                if last_conversation:
+                    previous_messages = Message.query.filter_by(conversation_id=last_conversation.id).order_by(Message.created_at).limit(5).all()
+                    message_history = [{'role': 'user' if msg.is_user else 'assistant', 'content': msg.content} for msg in previous_messages]
+        
+        # Add current message to history
+        message_history.append({'role': 'user', 'content': user_message})
+        
+        # Get response from orchestrated AI agents
+        ai_response = get_agent_response(user_message, message_history, user_info)
+        
+        # Add response to history
+        message_history.append({'role': 'assistant', 'content': ai_response})
+        
+        # Keep only last 10 messages in history
+        if len(message_history) > 20:
+            message_history = message_history[-20:]
+            
+        # Store updated history in session
+        session['chat_history'] = message_history
+        
+        return jsonify({'response': ai_response})
+    
+    except Exception as e:
+        logging.error(f"Error in public chat API: {e}")
+        return jsonify({'error': 'Failed to get AI response. Please try again.'}), 500

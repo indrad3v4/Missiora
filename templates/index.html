@@ -1,219 +1,314 @@
 {% extends "layout.html" %}
 
 {% block content %}
-<section class="hero-section bg-gradient text-white text-center py-5">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <h1 class="display-4 fw-bold mb-4">Unify Your Authentic Self With Your Business Growth</h1>
-                <p class="lead mb-4">Your AI agency that helps solopreneurs build businesses that express their whole selves, without fragmenting into disconnected roles and expectations.</p>
-                <div class="d-grid gap-2 d-sm-flex justify-content-sm-center">
-                    <a href="{{ url_for('metamask_login_page') }}" class="btn btn-primary btn-lg px-4 gap-3">
+<div class="container-fluid px-0 d-flex flex-column min-vh-100">
+    <!-- Header with app name and logo -->
+    <header class="bg-white py-3 border-bottom sticky-top">
+        <div class="container">
+            <div class="d-flex align-items-center">
+                <div class="d-flex align-items-center">
+                    <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="Unified Logo" height="40" class="me-2">
+                    <span class="fw-bold text-primary fs-4">Unified</span>
+                </div>
+                <div class="ms-auto">
+                    <button id="connectMetaMaskBtn" class="btn btn-primary px-3 d-flex align-items-center">
                         <i class="fas fa-wallet me-2"></i>Connect with MetaMask
-                    </a>
-                    <a href="#about" class="btn btn-outline-light btn-lg px-4">Learn More</a>
+                    </button>
                 </div>
             </div>
         </div>
-    </div>
-</section>
+    </header>
 
-<section id="about" class="py-5">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-8 text-center">
-                <h2 class="fw-bold mb-4">The Existential Challenge for Solopreneurs</h2>
-                <p class="lead text-muted mb-4">
-                    "I want to build a business that expresses my whole self, but the world fragments me into disconnected roles and expectations, therefore I need an AI system that helps me unify who I am with how I show up, create, and grow."
-                </p>
+    <!-- Main content area with AI chat interface -->
+    <main class="flex-grow-1 d-flex flex-column bg-light">
+        <div class="container flex-grow-1 d-flex flex-column py-3">
+            <!-- Conversation history container -->
+            <div id="chatContainer" class="flex-grow-1 mb-3 overflow-y-auto">
+                <div class="chat-welcome text-center py-4">
+                    <div class="mb-3">
+                        <div class="avatar-large bg-primary bg-gradient text-white rounded-circle mx-auto mb-3">
+                            <i class="fas fa-robot fa-2x"></i>
+                        </div>
+                        <h2 class="fw-bold">Your Solopreneur AI Assistant</h2>
+                        <p class="text-muted mb-0">Unifying your authentic self with business growth</p>
+                    </div>
+                    <div class="suggestion-chips d-flex flex-wrap justify-content-center gap-2 mt-4">
+                        <button class="chip-button btn btn-light rounded-pill" onclick="suggestedQuestion('How can I align my business with my personal values?')">
+                            Align business with values
+                        </button>
+                        <button class="chip-button btn btn-light rounded-pill" onclick="suggestedQuestion('I need help with my marketing strategy')">
+                            Marketing strategy help
+                        </button>
+                        <button class="chip-button btn btn-light rounded-pill" onclick="suggestedQuestion('How do I discover my unique strengths?')">
+                            Discover unique strengths
+                        </button>
+                    </div>
+                </div>
+
+                <div id="messages" class="py-2">
+                    <!-- Messages will be added here dynamically -->
+                </div>
+            </div>
+
+            <!-- Message input area -->
+            <div class="message-input-container">
+                <form id="chatForm" class="d-flex">
+                    <div class="input-group">
+                        <input type="text" id="userInput" class="form-control" placeholder="Ask me anything..." aria-label="Your message">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </form>
+                <div id="statusMessage" class="alert alert-info d-none mt-2 mb-0">
+                    <div class="d-flex align-items-center">
+                        <div class="spinner-border spinner-border-sm me-2" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <span id="statusText">Connecting to MetaMask...</span>
+                    </div>
+                </div>
             </div>
         </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .avatar-large {
+        width: 80px;
+        height: 80px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .chip-button {
+        font-size: 0.875rem;
+        padding: 0.25rem 1rem;
+        white-space: nowrap;
+    }
+    
+    .message {
+        max-width: 80%;
+        margin-bottom: 1rem;
+        border-radius: 1rem;
+        padding: 0.75rem 1rem;
+        position: relative;
+    }
+    
+    .message-user {
+        background-color: #e9ecef;
+        border-bottom-right-radius: 0.25rem;
+        align-self: flex-end;
+        margin-left: auto;
+    }
+    
+    .message-assistant {
+        background-color: #f0f8ff;
+        border-bottom-left-radius: 0.25rem;
+        align-self: flex-start;
+    }
+    
+    #messages {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    #chatContainer {
+        border-radius: 0.5rem;
+        background-color: white;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+        padding: 1rem;
+    }
+    
+    .input-group {
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+    
+    #userInput {
+        border: none;
+        padding: 0.75rem 1rem;
+    }
+    
+    #userInput:focus {
+        box-shadow: none;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('chatForm');
+        const input = document.getElementById('userInput');
+        const messagesContainer = document.getElementById('messages');
+        const connectButton = document.getElementById('connectMetaMaskBtn');
+        const statusMessage = document.getElementById('statusMessage');
+        const statusText = document.getElementById('statusText');
         
-        <div class="row mt-5 gx-4 gy-4">
-            <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm">
-                    <div class="card-body text-center p-4">
-                        <div class="feature-icon bg-primary bg-gradient text-white rounded-circle mb-3">
-                            <i class="fas fa-puzzle-piece"></i>
-                        </div>
-                        <h3 class="card-title h5 fw-bold">Identity Unification</h3>
-                        <p class="card-text text-muted">Integrate your personal values, strengths, and vision with your business strategy and brand.</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm">
-                    <div class="card-body text-center p-4">
-                        <div class="feature-icon bg-primary bg-gradient text-white rounded-circle mb-3">
-                            <i class="fas fa-lightbulb"></i>
-                        </div>
-                        <h3 class="card-title h5 fw-bold">Authentic Growth</h3>
-                        <p class="card-text text-muted">Develop strategies that leverage your unique perspective while staying true to your core identity.</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm">
-                    <div class="card-body text-center p-4">
-                        <div class="feature-icon bg-primary bg-gradient text-white rounded-circle mb-3">
-                            <i class="fas fa-balance-scale"></i>
-                        </div>
-                        <h3 class="card-title h5 fw-bold">Holistic Alignment</h3>
-                        <p class="card-text text-muted">Create harmony between your personal fulfillment and professional success metrics.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<section class="bg-light py-5">
-    <div class="container">
-        <div class="row align-items-center">
-            <div class="col-md-6 mb-4 mb-md-0">
-                <h2 class="fw-bold mb-3">How Our AI Agency Works</h2>
-                <p class="lead text-muted mb-4">Our intelligent agent system helps you navigate the complexities of building a business that feels like a natural extension of your authentic self.</p>
-                
-                <div class="d-flex align-items-start mb-3">
-                    <div class="feature-icon-small bg-primary bg-gradient text-white rounded-circle me-3">
-                        <i class="fas fa-brain"></i>
-                    </div>
-                    <div>
-                        <h4 class="h6 fw-bold">Deep Conversations</h4>
-                        <p class="text-muted mb-0">Our AI engages in meaningful dialogue that uncovers your core values, aspirations, and strengths.</p>
-                    </div>
-                </div>
-                
-                <div class="d-flex align-items-start mb-3">
-                    <div class="feature-icon-small bg-primary bg-gradient text-white rounded-circle me-3">
-                        <i class="fas fa-map-signs"></i>
-                    </div>
-                    <div>
-                        <h4 class="h6 fw-bold">Strategic Guidance</h4>
-                        <p class="text-muted mb-0">Receive personalized recommendations that align your business decisions with your authentic self.</p>
-                    </div>
-                </div>
-                
-                <div class="d-flex align-items-start">
-                    <div class="feature-icon-small bg-primary bg-gradient text-white rounded-circle me-3">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                    <div>
-                        <h4 class="h6 fw-bold">Continuous Growth</h4>
-                        <p class="text-muted mb-0">The system learns and evolves with you, adapting as your business and personal journey unfolds.</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="col-md-6">
-                <div class="card shadow-lg border-0 rounded-3 overflow-hidden">
-                    <div class="card-body p-4 p-md-5 bg-primary bg-gradient text-white">
-                        <h3 class="fw-bold mb-4">Ready to unify your personal identity with your business growth?</h3>
-                        <p class="lead mb-4">Join Unified today and start building a business that truly expresses your whole self.</p>
-                        <div class="d-grid">
-                            <a href="{{ url_for('metamask_login_page') }}" class="btn btn-light btn-lg">
-                                <i class="fas fa-wallet me-2"></i>Connect with MetaMask
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<section class="py-5">
-    <div class="container">
-        <div class="row justify-content-center mb-5">
-            <div class="col-lg-8 text-center">
-                <h2 class="fw-bold mb-3">What Solopreneurs Are Saying</h2>
-                <p class="lead text-muted">Hear from others who have unified their authentic selves with their business growth.</p>
-            </div>
-        </div>
+        let userAddress = null;
+        let isAuthenticated = false;
         
-        <div class="row g-4">
-            <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm">
-                    <div class="card-body p-4">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="avatar-placeholder bg-primary text-white rounded-circle me-3">JS</div>
-                            <div>
-                                <h5 class="card-title mb-0 fw-bold">Jamie Smith</h5>
-                                <p class="text-muted small mb-0">Wellness Coach</p>
-                            </div>
-                        </div>
-                        <p class="card-text">"Unified helped me realize I was trying to be someone I'm not in my business. Now my coaching practice feels like a natural extension of my authentic self, and clients respond to that alignment."</p>
-                        <div class="text-warning">
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        // Handle chat form submission
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
             
-            <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm">
-                    <div class="card-body p-4">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="avatar-placeholder bg-primary text-white rounded-circle me-3">RL</div>
-                            <div>
-                                <h5 class="card-title mb-0 fw-bold">Ray Lee</h5>
-                                <p class="text-muted small mb-0">UX Designer</p>
-                            </div>
-                        </div>
-                        <p class="card-text">"I was struggling to differentiate myself in a crowded market. Unified helped me identify and embrace my unique perspective, which now informs everything from my design style to client relationships."</p>
-                        <div class="text-warning">
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star-half-alt"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            const message = input.value.trim();
+            if (!message) return;
             
-            <div class="col-md-4">
-                <div class="card h-100 border-0 shadow-sm">
-                    <div class="card-body p-4">
-                        <div class="d-flex align-items-center mb-3">
-                            <div class="avatar-placeholder bg-primary text-white rounded-circle me-3">MJ</div>
-                            <div>
-                                <h5 class="card-title mb-0 fw-bold">Morgan Johnson</h5>
-                                <p class="text-muted small mb-0">Financial Consultant</p>
-                            </div>
-                        </div>
-                        <p class="card-text">"I was always torn between being personable and maintaining professional distance. Unified helped me create a business approach that honors my natural warmth while building credibility."</p>
-                        <div class="text-warning">
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                            <i class="fas fa-star"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<section class="bg-primary bg-gradient text-white text-center py-5">
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-lg-8">
-                <h2 class="fw-bold mb-4">Begin Your Journey to a Unified Business Self</h2>
-                <p class="lead mb-4">Join Unified today and start building a business that truly expresses your whole self, without fragmenting into disconnected roles and expectations.</p>
-                <a href="{{ url_for('metamask_login_page') }}" class="btn btn-light btn-lg px-4">
-                    <i class="fas fa-wallet me-2"></i>Connect with MetaMask
-                </a>
-            </div>
-        </div>
-    </div>
-</section>
+            // If not authenticated, prompt to connect first
+            if (!isAuthenticated) {
+                showChatMessage("Please connect with MetaMask first to use the AI assistant.", false);
+                return;
+            }
+            
+            // Add user message to chat
+            addUserMessage(message);
+            input.value = '';
+            
+            try {
+                // Show typing indicator
+                const typingIndicator = createTypingIndicator();
+                messagesContainer.appendChild(typingIndicator);
+                scrollToBottom(messagesContainer);
+                
+                // Send message to server
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        address: userAddress
+                    })
+                });
+                
+                // Remove typing indicator
+                if (typingIndicator) {
+                    typingIndicator.remove();
+                }
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addAssistantMessage(data.response);
+                } else {
+                    throw new Error('Failed to get response from assistant');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showErrorMessage('Sorry, there was an error processing your request. Please try again.');
+            }
+            
+            scrollToBottom(messagesContainer);
+        });
+        
+        // Handle MetaMask connection
+        connectButton.addEventListener('click', async () => {
+            try {
+                // Check if MetaMask is installed
+                if (typeof window.ethereum === 'undefined') {
+                    alert('MetaMask is not installed. Please install MetaMask to continue.');
+                    return;
+                }
+                
+                showStatus('Connecting to MetaMask...');
+                
+                // Request account access
+                const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+                const account = accounts[0];
+                
+                if (!account) {
+                    hideStatus();
+                    alert('No account found. Please unlock your MetaMask wallet.');
+                    return;
+                }
+                
+                userAddress = account;
+                showStatus('Connected with MetaMask');
+                
+                // Change button appearance
+                connectButton.innerHTML = `<i class="fas fa-check-circle me-2"></i>Connected: ${account.substring(0, 6)}...${account.substring(38)}`;
+                connectButton.classList.remove('btn-primary');
+                connectButton.classList.add('btn-success');
+                
+                // Show welcome message from assistant
+                setTimeout(() => {
+                    hideStatus();
+                    isAuthenticated = true;
+                    addAssistantMessage("Hello! I'm your solopreneur AI assistant. I'm here to help you unify your authentic self with your business growth. How can I assist you today?");
+                }, 1000);
+                
+            } catch (error) {
+                console.error('MetaMask Error:', error);
+                hideStatus();
+                alert(`MetaMask Error: ${error.message}`);
+            }
+        });
+        
+        // For suggested questions
+        window.suggestedQuestion = function(question) {
+            if (!isAuthenticated) {
+                showChatMessage("Please connect with MetaMask first to use the AI assistant.", false);
+                return;
+            }
+            
+            input.value = question;
+            form.dispatchEvent(new Event('submit'));
+        };
+        
+        function addUserMessage(content) {
+            showChatMessage(content, true);
+        }
+        
+        function addAssistantMessage(content) {
+            showChatMessage(content, false);
+        }
+        
+        function showErrorMessage(content) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-danger';
+            errorDiv.textContent = content;
+            messagesContainer.appendChild(errorDiv);
+        }
+        
+        function showChatMessage(content, isUser) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'message-user' : 'message-assistant'}`;
+            
+            const textDiv = document.createElement('div');
+            textDiv.className = 'message-text';
+            textDiv.innerHTML = content.replace(/\n/g, '<br>');
+            
+            messageDiv.appendChild(textDiv);
+            messagesContainer.appendChild(messageDiv);
+            
+            scrollToBottom(messagesContainer);
+        }
+        
+        function createTypingIndicator() {
+            const indicatorDiv = document.createElement('div');
+            indicatorDiv.className = 'message message-assistant typing-indicator';
+            indicatorDiv.innerHTML = '<div class="dots"><span>.</span><span>.</span><span>.</span></div>';
+            return indicatorDiv;
+        }
+        
+        function scrollToBottom(element) {
+            element.scrollTop = element.scrollHeight;
+        }
+        
+        function showStatus(message) {
+            statusText.textContent = message;
+            statusMessage.classList.remove('d-none');
+        }
+        
+        function hideStatus() {
+            statusMessage.classList.add('d-none');
+        }
+    });
+</script>
 {% endblock %}
