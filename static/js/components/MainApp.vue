@@ -58,7 +58,8 @@ const headerData = reactive({
   currentGoal: 'Set Goal',
   location: 'Location',
   timeline: 'Q1 2025',
-  balance: '€0'
+  balance: '€0',
+  avatar: '/static/images/default-avatar.svg'
 })
 
 onMounted(() => {
@@ -73,7 +74,7 @@ async function loadUserData() {
       Object.assign(headerData, userData)
     }
   } catch (error) {
-    console.log('Loading default user data')
+    console.log('No user data loaded')
   }
 }
 
@@ -82,6 +83,8 @@ function updateHeader(data) {
 }
 
 function onIdentitySaved(identityData) {
+  console.log('Identity saved:', identityData)
+  // Auto-advance to mission if identity is complete
   if (identityData.name && identityData.archetype) {
     setTimeout(() => {
       activeTab.value = 'mission'
@@ -90,6 +93,8 @@ function onIdentitySaved(identityData) {
 }
 
 function onMissionSaved(missionData) {
+  console.log('Mission saved:', missionData)
+  // Auto-advance to roadmap if mission is complete
   if (missionData.statement && missionData.goal) {
     setTimeout(() => {
       activeTab.value = 'roadmap'
@@ -98,7 +103,8 @@ function onMissionSaved(missionData) {
 }
 
 function onMilestoneChange() {
-  loadUserData()
+  console.log('Milestone changed')
+  loadUserData() // Refresh header data
 }
 </script>
 

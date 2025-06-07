@@ -25,7 +25,14 @@ class User(UserMixin, db.Model):
     mission_statement = db.Column(db.Text, nullable=True)
     current_goal = db.Column(db.String(500), nullable=True)
     
-    # Relationships
+
+# Add these fields after the existing User model fields, before # Relationships
+    # Identity and Mission data  
+    identity_data = db.Column(db.Text, nullable=True)  # JSON stored identity
+    mission_statement = db.Column(db.Text, nullable=True)
+    current_goal = db.Column(db.String(500), nullable=True)
+    
+        # Relationships
     conversations = db.relationship('Conversation', backref='user', lazy=True)
     
     def set_password(self, password):
@@ -46,7 +53,14 @@ class Conversation(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # Relationships
+
+# Add these fields after the existing User model fields, before # Relationships
+    # Identity and Mission data  
+    identity_data = db.Column(db.Text, nullable=True)  # JSON stored identity
+    mission_statement = db.Column(db.Text, nullable=True)
+    current_goal = db.Column(db.String(500), nullable=True)
+    
+        # Relationships
     messages = db.relationship('Message', backref='conversation', lazy=True, cascade="all, delete-orphan")
     
     def __repr__(self):

@@ -12,10 +12,112 @@ import json
 from web3 import Web3
 from eth_account.messages import encode_defunct
 
+# === NEW API ROUTES FOR 3-VIEW UX ===
+
+@app.route('/api/identity', methods=['GET', 'POST'])
+@login_required
+def api_identity():
+    """Handle identity data storage and retrieval"""
+    if request.method == 'POST':
+        identity_data = request.json
+        current_user.identity_data = json.dumps(identity_data)
+        db.session.commit()
+        return jsonify({'success': True})
+    else:
+        if current_user.identity_data:
+            return jsonify(json.loads(current_user.identity_data))
+        return jsonify({})
+
+@app.route('/api/mission', methods=['GET', 'POST'])
+@login_required
+def api_mission():
+    """Handle mission data storage and retrieval"""
+    if request.method == 'POST':
+        mission_data = request.json
+        current_user.mission_statement = mission_data.get('statement', '')
+        current_user.current_goal = mission_data.get('goal', '')
+        db.session.commit()
+        return jsonify({'success': True})
+    else:
+        return jsonify({
+            'statement': current_user.mission_statement or '',
+            'goal': current_user.current_goal or '',
+            'blocks': ''
+        })
+
+@app.route('/api/milestones')
+@login_required
+def api_milestones():
+    """Get all milestones"""
+    milestones = Milestone.query.order_by(Milestone.order_index).all()
+    return jsonify([{
+        'id': m.id,
+        'code': m.code,
+        'title': m.title,
+        'description': m.description,
+        'active': m.active,
+        'completed': m.completed,
+        'order_index': m.order_index
+    } for m in milestones])
+
+@app.route('/api/milestones/<int:milestone_id>/complete', methods=['POST'])
+@login_required
+def api_complete_milestone(milestone_id):
+    """Mark milestone as complete and activate next"""
+    milestone = Milestone.query.get_or_404(milestone_id)
+    milestone.completed = True
+    milestone.active = False
+    
+    # Activate next milestone
+    next_milestone = Milestone.query.filter(
+        Milestone.order_index > milestone.order_index,
+        Milestone.completed == False
+    ).order_by(Milestone.order_index).first()
+    
+    if next_milestone:
+        next_milestone.active = True
+    
+    db.session.commit()
+    return jsonify({'success': True})
+
+@app.route('/api/milestones/<int:milestone_id>/activate', methods=['POST'])
+@login_required
+def api_activate_milestone(milestone_id):
+    """Activate a specific milestone"""
+    # Deactivate all milestones
+    Milestone.query.update({'active': False})
+    
+    # Activate selected milestone
+    milestone = Milestone.query.get_or_404(milestone_id)
+    milestone.active = True
+    
+    db.session.commit()
+    return jsonify({'success': True})
+
+@app.route('/api/user-data')
+@login_required
+def api_user_data():
+    """Get user data for header display"""
+    identity_data = {}
+    if current_user.identity_data:
+        identity_data = json.loads(current_user.identity_data)
+    
+    return jsonify({
+        'name': identity_data.get('name', current_user.username),
+        'currentGoal': current_user.current_goal or 'Set Your Goal',
+        'location': identity_data.get('region', 'Location'),
+        'timeline': 'Q1 2025',
+        'balance': '€0'
+    })
+
+
 @app.route('/')
 def index():
-    # Redirect to the new narrative chat experience
-    return redirect(url_for('narrative_chat'))
+    """Main application entry point"""
+    if current_user.is_authenticated:
+        return render_template('index.html')
+    else:
+        return redirect(url_for('auth_options'))
 
 @app.route('/narrative-chat')
 def narrative_chat():

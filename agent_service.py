@@ -1,3 +1,16 @@
+
+
+def get_milestone_context():
+    """Get current active milestone context"""
+    try:
+        from models import Milestone
+        active_milestone = Milestone.query.filter_by(active=True, completed=False).first()
+        if active_milestone:
+            return f"Current milestone: {active_milestone.title} - {active_milestone.description}"
+        return "No active milestone"
+    except:
+        return "Milestone system initializing"
+
 import os
 import logging
 import json
@@ -105,6 +118,7 @@ def get_agent_response(user_message, message_history=None, user_info=None):
         
         # Create context information
         context = create_context(user_info)
+        milestone_context = get_milestone_context()
         
         # Step 1: Determine which agent(s) should handle this query
         agent_selection = determine_agents(user_message, context)

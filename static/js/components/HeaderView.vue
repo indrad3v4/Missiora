@@ -10,7 +10,7 @@
         <span class="balance">💰 {{ userData.balance || '€0' }}</span>
       </div>
       <div class="avatar">
-        <div class="avatar-placeholder">{{ getInitials(userData.name) }}</div>
+        <img :src="userData.avatar || '/static/images/default-avatar.svg'" alt="Avatar" />
       </div>
     </div>
   </div>
@@ -18,18 +18,12 @@
 
 <script setup>
 import { defineProps } from 'vue'
-
-const props = defineProps({
+defineProps({
   userData: {
     type: Object,
     default: () => ({})
   }
 })
-
-function getInitials(name) {
-  if (!name) return 'S'
-  return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
-}
 </script>
 
 <style scoped>
@@ -75,30 +69,20 @@ function getInitials(name) {
   border: 3px solid rgba(255,255,255,0.3);
 }
 
-.avatar-placeholder {
+.avatar img {
   width: 100%;
   height: 100%;
-  background: rgba(255,255,255,0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 1.2rem;
+  object-fit: cover;
 }
 
 @media (max-width: 768px) {
   .info-pill {
     flex-direction: column;
     gap: 0.5rem;
-    align-items: center;
   }
   
   .info-pill span {
     font-size: 0.8rem;
-  }
-  
-  .brand {
-    font-size: 1.2rem;
   }
 }
 </style>
