@@ -50,23 +50,27 @@ class Conversation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     title = db.Column(db.String(200), default="New Conversation")
-    section = db.Column(db.String(50), nullable=True)  # identity, mission, roadmap
-    context_snapshot = db.Column(db.Text, nullable=True)  # Context at conversation start
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+
+# Add these fields after the existing User model fields, before # Relationships
+    # Identity and Mission data  
+    identity_data = db.Column(db.Text, nullable=True)  # JSON stored identity
+    mission_statement = db.Column(db.Text, nullable=True)
+    current_goal = db.Column(db.String(500), nullable=True)
+    
+        # Relationships
     messages = db.relationship('Message', backref='conversation', lazy=True, cascade="all, delete-orphan")
     
     def __repr__(self):
-        return f'<Conversation {self.id}: {self.title}>'
+        return f'<Conversation {self.id}>'
 
 class Message(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     conversation_id = db.Column(db.Integer, db.ForeignKey('conversation.id'), nullable=False)
     content = db.Column(db.Text, nullable=False)
     is_user = db.Column(db.Boolean, default=True)  # True if from user, False if from AI
-    agent_name = db.Column(db.String(100), nullable=True)  # Which agent responded
-    context_used = db.Column(db.Text, nullable=True)  # Context available to agent
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
@@ -110,50 +114,4 @@ class Milestone(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     def __repr__(self):
-        return f'<Milestone {self.code}: {self.title}>'
-
-class ContextSession(db.Model):
-    """Store user context across all sections for orchestrator memory"""
-    __tablename__ = 'context_sessions'
-    
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(100), nullable=False)
-    session_data = db.Column(db.Text, nullable=True)  # JSON stored context
-    identity_data = db.Column(db.Text, nullable=True)  # JSON identity info
-    mission_data = db.Column(db.Text, nullable=True)   # JSON mission info
-    milestone_progress = db.Column(db.Text, nullable=True)  # JSON milestone status
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    def get_identity(self):
-        if self.identity_data:
-            import json
-            return json.loads(self.identity_data)
-        return {}
-    
-    def set_identity(self, data):
-        import json
-        self.identity_data = json.dumps(data)
-        self.updated_at = datetime.utcnow()
-    
-    def get_mission(self):
-        if self.mission_data:
-            import json
-            return json.loads(self.mission_data)
-        return {}
-    
-    def set_mission(self, data):
-        import json
-        self.mission_data = json.dumps(data)
-        self.updated_at = datetime.utcnow()
-    
-    def get_full_context(self):
-        """Get comprehensive context for AI"""
-        import json
-        return {
-            'identity': self.get_identity(),
-            'mission': self.get_mission(),
-            'milestone_progress': json.loads(self.milestone_progress) if self.milestone_progress else [],
-            'session_data': json.loads(self.session_data) if self.session_data else {},
-            'last_updated': self.updated_at.isoformat() if self.updated_at else None
-        }
+        return f'<Milestone {self.code}>'

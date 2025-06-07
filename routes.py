@@ -15,6 +15,7 @@ from eth_account.messages import encode_defunct
 # === NEW API ROUTES FOR 3-VIEW UX ===
 
 @app.route('/api/identity', methods=['GET', 'POST'])
+@login_required
 def api_identity():
     """Handle identity data storage and retrieval"""
     if request.method == 'POST':
@@ -28,6 +29,7 @@ def api_identity():
         return jsonify({})
 
 @app.route('/api/mission', methods=['GET', 'POST'])
+@login_required
 def api_mission():
     """Handle mission data storage and retrieval"""
     if request.method == 'POST':
@@ -132,7 +134,10 @@ def api_chat():
 @app.route('/')
 def index():
     """Main application entry point"""
-    return redirect('/dev')
+    if current_user.is_authenticated:
+        return render_template('index.html')
+    else:
+        return redirect(url_for('auth_options'))
 
 @app.route('/narrative-chat')
 def narrative_chat():
