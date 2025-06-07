@@ -20,6 +20,11 @@ class User(UserMixin, db.Model):
     business_name = db.Column(db.String(200))
     business_description = db.Column(db.Text)
     
+    # Identity and Mission data
+    identity_data = db.Column(db.Text, nullable=True)  # JSON stored identity
+    mission_statement = db.Column(db.Text, nullable=True)
+    current_goal = db.Column(db.String(500), nullable=True)
+    
     # Relationships
     conversations = db.relationship('Conversation', backref='user', lazy=True)
     
@@ -82,3 +87,17 @@ class UserInsight(db.Model):
     
     def __repr__(self):
         return f'<UserInsight {self.id}>'
+
+class Milestone(db.Model):
+    __tablename__ = 'milestones'
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    active = db.Column(db.Boolean, default=False)
+    completed = db.Column(db.Boolean, default=False)
+    order_index = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<Milestone {self.code}>'
