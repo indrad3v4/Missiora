@@ -1,0 +1,10 @@
+
+flask==2.3.3
+flask-sqlalchemy==3.0.5
+flask-login==0.6.3
+werkzeug==2.3.7
+openai==1.51.2
+web3==6.11.3
+eth-account==0.9.0
+gunicorn==21.2.0
+openai-agents==0.0.12
