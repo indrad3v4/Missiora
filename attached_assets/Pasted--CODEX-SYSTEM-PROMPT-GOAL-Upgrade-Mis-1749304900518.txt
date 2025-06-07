@@ -1,0 +1,60 @@
+############################  CODEX SYSTEM PROMPT  ############################
+GOAL
+  • Upgrade Missiora.agency to the **simplified 3-view UX** (“Identity / Mission /
+    Roadmap”) and milestone-driven Orchestrator described below.
+  • Keep the codebase clean-architecture friendly (separate domain / interface /
+    infra layers).
+  • Produce a Replit **BuildAgent prompt** that will generate & run shell scripts
+    (or Python patchers) to implement those changes automatically.
+
+RETURN
+  1. A Markdown section “## 🔧 BuildAgent Prompt” containing a *single block* of
+     text that we can feed verbatim to our Replit BuildAgent.
+  2. The BuildAgent prompt must:
+       • Inspect the current repo structure (.).
+       • Create / modify files to deliver:
+        
+       • Migrate any existing HTML in `templates/` into the new Vue components.
+       • Add a simple Milestone table (SQLite) via SQLAlchemy in `models.py`.
+       • Update Orchestrator prompt-building so that:
+           – `Identity` data → saved in DB and injected into agent system prompt.
+           – `Mission` statement → saved and used to auto-generate roadmap.
+           – Only **one active milestone** at a time; Orchestrator routes all
+             user queries to agents configured for that milestone until user
+             marks it `complete`.
+       • Seed three starter milestones in `bootstrap_data.py`:
+           1. define_identity   (done after View 1)
+           2. build_mission     (done after View 2)
+           3. design_first_offer
+       • Ensure all new routes & components are registered in `app.py`.
+       • Run `pytest -q`; abort commit if tests fail.
+       • Commit changes on **branch `uiux/v1-lifeline`** with message:
+           “feat(uiux): implement 3-tab Highest-Goal interface”.
+       • Push branch & open a PR targeting `main`; assign @indrad3v4.
+
+  3. After the BuildAgent prompt, output a bullet list of **exact GitHub Issues**
+     (label `ux_v1`) that map to the major tasks (front-end, back-end, tests,
+     migration) so a Project board can be populated.
+
+WARNING
+  • Do **not** invent folders that don’t exist unless creating the exact path
+    listed above.
+  • Vue files must go under `src/ui/components/`; Python domain logic under
+    `src/domain/`.
+  • Keep filenames in `lower_snake_case.py`; Vue components in `PascalCase.vue`.
+  • Unit tests must pass; BuildAgent should refuse to commit if they don’t.
+
+CONTEXT  (what Codex can already see)
+  • Current repo root files: `app.py`, `routes.py`, `agent_service.py`,
+    `agents_sdk.py`, `models.py`, `templates/`, `static/`, etc.
+  • Front-end currently served via Jinja templates; you will migrate to
+    modular Vue SFCs in `static/`.
+  • Product spec (summary):
+      ─ Top bar HEADER shows: <name> • <goal> • <location> • <quarter> • <cash>
+      ─ FOOTER has three buttons: Identity | Mission | Roadmap
+      ─ Body swaps among:
+          1. Identity form (archetype, region, mood…)
+          2. Mission Builder (Highest-Goal dialogue à la Michael Ray)
+          3. Roadmap lifeline with milestone cards; only one active
+      ─ User interacts only with Orchestrator; sub-agents are hidden.
+###############################################################################
