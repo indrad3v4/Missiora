@@ -141,7 +141,7 @@ def index():
     if current_user.is_authenticated:
         return render_template('index.html')
     else:
-        return redirect(url_for('auth_options'))
+        return render_template('landing.html')
 
 @app.route('/narrative-chat')
 def narrative_chat():
