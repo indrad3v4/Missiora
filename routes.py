@@ -138,10 +138,16 @@ def api_chat():
 @app.route('/')
 def index():
     """Main application entry point"""
-    if current_user.is_authenticated:
+    return render_template('app.html')
+
+@app.route('/app')
+def app_interface():
+    """Main app interface - handles both auth states"""
+    guest_mode = request.args.get('guest') == 'true'
+    if current_user.is_authenticated or guest_mode:
         return render_template('index.html')
     else:
-        return render_template('landing.html')
+        return redirect(url_for('replit_auth.login'))
 
 @app.route('/narrative-chat')
 def narrative_chat():
