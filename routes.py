@@ -11,6 +11,10 @@ from werkzeug.security import generate_password_hash
 import json
 from web3 import Web3
 from eth_account.messages import encode_defunct
+from replit_auth import make_replit_blueprint, require_login
+
+# Register Replit Auth blueprint
+app.register_blueprint(make_replit_blueprint(), url_prefix="/auth")
 
 # === NEW API ROUTES FOR 3-VIEW UX ===
 

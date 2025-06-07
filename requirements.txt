@@ -15,3 +15,5 @@ oauthlib
 pyjwt
 requests
 sqlalchemy
+flask-dance
+pyjwt
