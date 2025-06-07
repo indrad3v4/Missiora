@@ -97,54 +97,97 @@ def metamask_login():
         logging.error(f"Error during MetaMask login: {e}")
         return jsonify({'error': 'Authentication failed'}), 500
 
-@app.route('/auth/replit')
-def replit_auth():
-    """Initiate Replit OAuth flow"""
+@app.route('/auth/github')
+def github_auth():
+    """GitHub OAuth authentication"""
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     
-    # Check if we have Replit user info in headers (when running on Replit)
-    replit_user_id = request.headers.get('X-Replit-User-Id')
-    replit_username = request.headers.get('X-Replit-User-Name')
-    replit_email = request.headers.get('X-Replit-User-Email')
+    # For demo purposes, create a simple mock authentication
+    # In production, this would integrate with GitHub OAuth
+    session['pending_auth'] = {
+        'provider': 'github',
+        'user_id': 'github_demo_user',
+        'username': 'github_user',
+        'email': 'user@github.example'
+    }
+    return redirect(url_for('complete_oauth'))
+
+@app.route('/auth/google')
+def google_auth():
+    """Google OAuth authentication"""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
     
-    if replit_user_id and replit_username:
-        # User is authenticated with Replit
-        user = User.query.filter_by(replit_user_id=replit_user_id).first()
+    # For demo purposes, create a simple mock authentication
+    # In production, this would integrate with Google OAuth
+    session['pending_auth'] = {
+        'provider': 'google',
+        'user_id': 'google_demo_user',
+        'username': 'google_user',
+        'email': 'user@gmail.example'
+    }
+    return redirect(url_for('complete_oauth'))
+
+@app.route('/auth/apple')
+def apple_auth():
+    """Apple ID authentication"""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    # For demo purposes, create a simple mock authentication
+    # In production, this would integrate with Apple Sign In
+    session['pending_auth'] = {
+        'provider': 'apple',
+        'user_id': 'apple_demo_user',
+        'username': 'apple_user',
+        'email': 'user@icloud.example'
+    }
+    return redirect(url_for('complete_oauth'))
+
+@app.route('/auth/complete')
+def complete_oauth():
+    """Complete OAuth authentication process"""
+    auth_data = session.pop('pending_auth', None)
+    if not auth_data:
+        flash('Authentication failed. Please try again.', 'error')
+        return redirect(url_for('auth_options'))
+    
+    provider = auth_data['provider']
+    provider_user_id = auth_data['user_id']
+    username = auth_data['username']
+    email = auth_data['email']
+    
+    # Check if user already exists
+    user = User.query.filter_by(email=email).first()
+    
+    if user:
+        # User exists, log them in
+        login_user(user, remember=True)
+        flash(f'Welcome back!', 'success')
+        return redirect(url_for('dashboard'))
+    else:
+        # Create new user
+        base_username = username
+        counter = 1
         
-        if user:
-            # Existing user, log them in
-            login_user(user, remember=True)
-            flash('Welcome back!', 'success')
-            return redirect(url_for('dashboard'))
-        else:
-            # Create new user with Replit credentials
-            username = replit_username
-            base_username = username
-            counter = 1
-            
-            # Ensure username is unique
-            while User.query.filter_by(username=username).first():
-                username = f"{base_username}_{counter}"
-                counter += 1
-            
-            new_user = User(
-                username=username,
-                email=replit_email,
-                replit_user_id=replit_user_id,
-                auth_type='replit'
-            )
-            
-            db.session.add(new_user)
-            db.session.commit()
-            
-            login_user(new_user, remember=True)
-            flash('Account created successfully with Replit!', 'success')
-            return redirect(url_for('dashboard'))
-    
-    # If not running on Replit or no user info, redirect to login options
-    flash('Replit authentication is only available when running on Replit', 'info')
-    return redirect(url_for('auth_options'))
+        # Ensure username is unique
+        while User.query.filter_by(username=username).first():
+            username = f"{base_username}_{counter}"
+            counter += 1
+        
+        new_user = User(
+            username=username,
+            email=email,
+            auth_type=provider
+        )
+        
+        db.session.add(new_user)
+        db.session.commit()
+        
+        login_user(new_user, remember=True)
+        flash(f'Account created successfully!', 'success')
+        return redirect(url_for('dashboard'))
 
 @app.route('/auth/options')
 def auth_options():
