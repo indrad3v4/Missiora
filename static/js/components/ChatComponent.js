@@ -28,7 +28,7 @@ export default {
             <input 
               type="text" 
               v-model="userInput" 
-              :disabled="isTyping || requireMetaMask"
+              :disabled="isTyping || requireAuth"
               class="form-control" 
               placeholder="Type your response..." 
               ref="inputField"
@@ -36,7 +36,7 @@ export default {
             <button 
               type="submit" 
               class="btn btn-primary" 
-              :disabled="isTyping || !userInput || requireMetaMask"
+              :disabled="isTyping || !userInput || requireAuth"
             >
               <i class="fas fa-paper-plane"></i>
             </button>
@@ -47,20 +47,20 @@ export default {
         <div v-if="freeMessagesRemaining !== null && freeMessagesRemaining <= 2" class="message-limit-warning">
           <span v-if="freeMessagesRemaining === 0">
             You've reached the free message limit.
-            <button @click="connectMetaMask" class="btn btn-sm btn-outline-primary">Connect with MetaMask</button>
+            <a href="/auth/options" class="btn btn-sm btn-outline-primary">Sign In</a>
             to continue.
           </span>
           <span v-else>
             You have {{ freeMessagesRemaining }} free {{ freeMessagesRemaining === 1 ? 'message' : 'messages' }} remaining.
-            <button @click="connectMetaMask" class="btn btn-sm btn-outline-primary">Connect with MetaMask</button>
+            <a href="/auth/options" class="btn btn-sm btn-outline-primary">Sign In</a>
             for unlimited access.
           </span>
         </div>
         
-        <!-- MetaMask connection required message -->
-        <div v-if="requireMetaMask" class="metamask-required-message">
-          <p>Free message limit reached. Please connect with MetaMask to continue.</p>
-          <button @click="connectMetaMask" class="btn btn-primary">Connect with MetaMask</button>
+        <!-- Authentication required message -->
+        <div v-if="requireAuth" class="auth-required-message">
+          <p>Free message limit reached. Please sign in to continue.</p>
+          <a href="/auth/options" class="btn btn-primary">Sign In</a>
         </div>
       </div>
     </div>
@@ -72,29 +72,16 @@ export default {
       userInput: '',
       isTyping: false,
       freeMessagesRemaining: null,
-      requireMetaMask: false,
+      requireAuth: false,
       isAuthenticated: false,
-      userAddress: null
+      userId: null
     }
   },
   
   mounted() {
     this.startConversation();
-    // Check if MetaMask is already connected
-    this.checkMetaMaskConnection();
-    
-    // Listen for MetaMask connection events
-    window.addEventListener('metamaskConnected', (event) => {
-      this.isAuthenticated = true;
-      this.userAddress = event.detail.address;
-      // Add authentication success message
-      this.addMessage({
-        id: Date.now(),
-        role: 'agent',
-        agent: 'OrchestratorAgent',
-        text: "Great! You're now connected with MetaMask. You have unlimited access to the AI agency. How else can I help you today?"
-      });
-    });
+    // Check if user is already authenticated
+    this.checkAuthStatus();
   },
   
   methods: {
@@ -106,8 +93,7 @@ export default {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            start: true,
-            address: this.userAddress 
+            start: true
           })
         });
         
@@ -139,7 +125,7 @@ export default {
     },
     
     async sendMessage() {
-      if (!this.userInput.trim() || this.requireMetaMask) return;
+      if (!this.userInput.trim() || this.requireAuth) return;
             
       const userMessage = this.userInput.trim();
       this.userInput = '';
