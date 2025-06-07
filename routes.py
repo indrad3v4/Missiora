@@ -4,7 +4,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 import os
 import requests
 from app import app, db
-from models import User, Conversation, Message, UserGoal, UserInsight
+from models import User, Conversation, Message, UserGoal, UserInsight, Milestone
 # Import the new agent SDK for handoff capabilities
 from agents_sdk import get_agent_response, get_greeting
 from werkzeug.security import generate_password_hash
@@ -110,6 +110,26 @@ def api_user_data():
         'balance': '€0'
     })
 
+@app.route('/api/chat', methods=['POST'])
+@login_required
+def api_chat():
+    """Handle chat requests for mission building"""
+    data = request.get_json()
+    user_message = data.get('user_message', '')
+    
+    try:
+        # Use the existing agent system
+        response = get_agent_response(user_message)
+        return jsonify({
+            'reply': response.get('reply', 'I understand. Tell me more about your goals.'),
+            'agent': response.get('agent', 'orchestrator')
+        })
+    except Exception as e:
+        app.logger.error(f"Chat error: {e}")
+        return jsonify({
+            'reply': 'I understand your perspective. Could you tell me more about what success looks like for you?',
+            'agent': 'orchestrator'
+        })
 
 @app.route('/')
 def index():
