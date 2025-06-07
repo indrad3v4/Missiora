@@ -46,58 +46,76 @@
             overflow-y: auto;
         }
 
-        /* Header Styles */
-        .header-bar {
-            background: linear-gradient(135deg, #4ade80 0%, #22d3ee 100%);
+        /* Enhanced Header Styles */
+        .gradient-header {
+            background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%);
             padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             color: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
         }
 
-        .brand {
+        .max-w-7xl {
+            max-width: 80rem;
+        }
+
+        .mx-auto {
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .justify-between {
+            justify-content: space-between;
+        }
+
+        .items-center {
+            align-items: center;
+        }
+
+        .text-2xl {
             font-size: 1.5rem;
-            font-weight: bold;
-            letter-spacing: 2px;
+            line-height: 2rem;
         }
 
-        .user-info {
+        .font-bold {
+            font-weight: 700;
+        }
+
+        .tracking-wider {
+            letter-spacing: 0.05em;
+        }
+
+        .glass-pill {
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 1.5rem;
+            padding: 0.75rem 1.5rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        .user-data-items {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 1.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
         }
 
-        .info-pill {
+        .avatar-circle {
+            width: 3rem;
+            height: 3rem;
             background: rgba(255,255,255,0.2);
-            padding: 0.5rem 1rem;
-            border-radius: 25px;
-            display: flex;
-            gap: 1rem;
-            backdrop-filter: blur(10px);
-        }
-
-        .info-pill span {
-            font-size: 0.9rem;
-        }
-
-        .avatar {
-            width: 50px;
-            height: 50px;
             border-radius: 50%;
-            overflow: hidden;
-            border: 3px solid rgba(255,255,255,0.3);
-        }
-
-        .avatar-placeholder {
-            width: 100%;
-            height: 100%;
-            background: rgba(255,255,255,0.2);
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
-            font-size: 1.2rem;
+            font-size: 1.125rem;
+            border: 2px solid rgba(255,255,255,0.3);
         }
 
         /* Footer Navigation */

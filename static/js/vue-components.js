@@ -3,21 +3,25 @@
 const HeaderView = {
   props: ['userData'],
   template: `
-    <div class="header-bar">
-      <div class="brand">MISSIORA</div>
-      <div class="user-info" v-if="userData">
-        <div class="info-pill">
-          <span class="name">{{ userData.name || 'Solopreneur' }}</span>
-          <span class="goal">🎯 {{ userData.currentGoal || 'Set Goal' }}</span>
-          <span class="location">📍 {{ userData.location || 'Location' }}</span>
-          <span class="timeline">🕒 {{ userData.timeline || 'Q1 2025' }}</span>
-          <span class="balance">💰 {{ userData.balance || '€0' }}</span>
+    <header class="gradient-header px-6 py-4 text-white">
+      <div class="max-w-7xl mx-auto flex justify-between items-center">
+        <h1 class="text-2xl font-bold tracking-wider">MISSIORA</h1>
+        
+        <div v-if="userData" class="glass-pill">
+          <div class="user-data-items">
+            <span class="user-name">{{ userData.name || 'Solopreneur' }}</span>
+            <span class="user-goal">🎯 {{ userData.currentGoal || 'Set Your Goal' }}</span>
+            <span class="user-location">📍 {{ userData.location || 'Location' }}</span>
+            <span class="user-timeline">🕒 {{ userData.timeline || 'Q1 2025' }}</span>
+            <span class="user-balance">💰 €{{ userData.balance || '0' }}</span>
+          </div>
         </div>
-        <div class="avatar">
-          <div class="avatar-placeholder">{{ getInitials(userData.name) }}</div>
+        
+        <div class="avatar-circle">
+          {{ getInitials(userData?.name) }}
         </div>
       </div>
-    </div>
+    </header>
   `,
   methods: {
     getInitials(name) {
@@ -38,68 +42,133 @@ const IdentityView = {
         region: '',
         field: '',
         selfTitle: ''
-      }
+      },
+      showOrchestrator: false,
+      orchestratorMessages: [],
+      orchestratorInput: '',
+      isOrchestratorTyping: false
     }
   },
   template: `
-    <div class="identity-view">
-      <div class="content-card">
-        <h2>Define Your Identity</h2>
-        <form @submit.prevent="saveIdentity" class="identity-form">
+    <div class="max-w-4xl mx-auto px-6 py-8">
+      <div class="glass-card p-8">
+        <h2 class="text-3xl font-bold text-gray-800 mb-2">Define Your Identity</h2>
+        <p class="text-gray-600 mb-8">Discover your authentic self and entrepreneurial archetype</p>
+        
+        <!-- Orchestrator Helper -->
+        <div v-if="showOrchestrator" class="mb-8 orchestrator-card">
+          <div class="orchestrator-header">
+            <h3 class="orchestrator-title">🧠 Identity Orchestrator</h3>
+            <button @click="showOrchestrator = false" class="close-orchestrator">×</button>
+          </div>
+          
+          <div class="orchestrator-messages">
+            <div v-for="message in orchestratorMessages" :key="message.id" 
+                 :class="['message-bubble', message.type === 'user' ? 'user-message' : 'ai-message']">
+              <div class="message-content">{{ message.content }}</div>
+            </div>
+            <div v-if="isOrchestratorTyping" class="ai-message">
+              <div class="typing-indicator">
+                <span>🤖 Thinking</span>
+                <div class="typing-dots">
+                  <span></span><span></span><span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="orchestrator-input">
+            <input 
+              v-model="orchestratorInput" 
+              @keyup.enter="sendToOrchestrator"
+              placeholder="Tell me about yourself, your dreams, your challenges..."
+              class="flex-1 input-field"
+              :disabled="isOrchestratorTyping"
+            />
+            <button @click="sendToOrchestrator" 
+                    :disabled="isOrchestratorTyping || !orchestratorInput.trim()" 
+                    class="btn-primary">
+              {{ isOrchestratorTyping ? '...' : 'Send' }}
+            </button>
+          </div>
+        </div>
+        
+        <form @submit.prevent="saveIdentity" class="space-y-6">
           <div class="form-group">
-            <label>Your Name</label>
-            <input v-model="identity.name" placeholder="Enter your name" class="form-input" />
+            <label class="form-label">Your Name</label>
+            <input v-model="identity.name" 
+                   placeholder="Enter your full name" 
+                   class="input-field" />
           </div>
           
           <div class="form-group">
-            <label>Archetype</label>
-            <select v-model="identity.archetype" class="form-select">
+            <label class="form-label">Entrepreneurial Archetype</label>
+            <select v-model="identity.archetype" class="input-field">
               <option value="">Select your archetype</option>
-              <option value="creator">Creator</option>
-              <option value="builder">Builder</option>
-              <option value="consultant">Consultant</option>
-              <option value="teacher">Teacher</option>
-              <option value="innovator">Innovator</option>
+              <option value="builder">Builder - Create and construct</option>
+              <option value="guide">Guide - Teach and mentor</option>
+              <option value="rebel">Rebel - Disrupt and innovate</option>
+              <option value="creator">Creator - Design and imagine</option>
+              <option value="connector">Connector - Network and unite</option>
             </select>
           </div>
           
           <div class="form-group">
-            <label>Current Mood</label>
-            <textarea v-model="identity.mood" placeholder="How are you feeling about your journey?" class="form-textarea"></textarea>
+            <label class="form-label">Current Mood & Energy</label>
+            <textarea v-model="identity.mood" 
+                      placeholder="How are you feeling about your entrepreneurial journey right now?"
+                      class="input-field textarea-field"></textarea>
           </div>
           
           <div class="form-group">
-            <label>Region/Location</label>
-            <input v-model="identity.region" placeholder="Where are you based?" class="form-input" />
+            <label class="form-label">Region/Location</label>
+            <input v-model="identity.region" 
+                   placeholder="Where are you based? (e.g., Berlin, Germany)" 
+                   class="input-field" />
           </div>
           
           <div class="form-group">
-            <label>Field/Industry</label>
-            <input v-model="identity.field" placeholder="What industry do you work in?" class="form-input" />
+            <label class="form-label">Industry/Field</label>
+            <input v-model="identity.field" 
+                   placeholder="What industry or field do you work in?" 
+                   class="input-field" />
           </div>
           
           <div class="form-group">
-            <label>Self-Title</label>
-            <input v-model="identity.selfTitle" placeholder="How do you describe yourself?" class="form-input" />
+            <label class="form-label">Professional Title</label>
+            <input v-model="identity.selfTitle" 
+                   placeholder="How do you describe yourself professionally?" 
+                   class="input-field" />
           </div>
           
-          <button type="submit" class="save-btn">Save Identity</button>
+          <div class="flex gap-4 pt-4">
+            <button type="submit" class="btn-primary flex-1">
+              Save Identity & Continue
+            </button>
+            <button type="button" @click="toggleOrchestrator" class="btn-secondary">
+              {{ showOrchestrator ? 'Hide' : 'Get' }} AI Guidance
+            </button>
+          </div>
         </form>
       </div>
     </div>
   `,
   async mounted() {
-    try {
-      const response = await fetch('/api/identity')
-      if (response.ok) {
-        const data = await response.json()
-        Object.assign(this.identity, data)
-      }
-    } catch (error) {
-      console.log('No existing identity data')
-    }
+    await this.loadIdentity()
   },
   methods: {
+    async loadIdentity() {
+      try {
+        const response = await fetch('/api/identity')
+        if (response.ok) {
+          const data = await response.json()
+          Object.assign(this.identity, data)
+        }
+      } catch (error) {
+        console.log('No existing identity data')
+      }
+    },
+    
     async saveIdentity() {
       try {
         const response = await fetch('/api/identity', {
@@ -114,11 +183,73 @@ const IdentityView = {
             name: this.identity.name,
             location: this.identity.region
           })
-          alert('Identity saved successfully!')
         }
       } catch (error) {
         console.error('Failed to save identity:', error)
-        alert('Failed to save identity')
+      }
+    },
+    
+    toggleOrchestrator() {
+      this.showOrchestrator = !this.showOrchestrator
+      if (this.showOrchestrator && this.orchestratorMessages.length === 0) {
+        this.orchestratorMessages.push({
+          id: 1,
+          type: 'ai',
+          content: 'Hello! I\'m here to help you discover your authentic entrepreneurial identity. What drives you? What are you passionate about creating? Tell me about your dreams and what makes you unique.'
+        })
+      }
+    },
+    
+    async sendToOrchestrator() {
+      if (!this.orchestratorInput.trim() || this.isOrchestratorTyping) return
+      
+      const userMessage = this.orchestratorInput.trim()
+      this.orchestratorMessages.push({
+        id: Date.now(),
+        type: 'user',
+        content: userMessage
+      })
+      
+      this.orchestratorInput = ''
+      this.isOrchestratorTyping = true
+      
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_message: userMessage,
+            context: 'identity_discovery'
+          })
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          this.orchestratorMessages.push({
+            id: Date.now() + 1,
+            type: 'ai',
+            content: data.reply || 'I understand. Take your time to reflect on what truly matters to you in your entrepreneurial journey.'
+          })
+        } else {
+          throw new Error('Chat service unavailable')
+        }
+      } catch (error) {
+        this.orchestratorMessages.push({
+          id: Date.now() + 1,
+          type: 'ai',
+          content: 'I understand. Take your time to reflect on what truly matters to you in your entrepreneurial journey. What aspects of your identity feel most authentic to you?'
+        })
+      } finally {
+        this.isOrchestratorTyping = false
+        await this.$nextTick()
+        this.scrollOrchestratorToBottom()
+      }
+    },
+    
+    scrollOrchestratorToBottom() {
+      const container = document.querySelector('.orchestrator-messages')
+      if (container) {
+        container.scrollTop = container.scrollHeight
       }
     }
   }
