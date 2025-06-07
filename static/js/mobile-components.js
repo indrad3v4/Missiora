@@ -196,7 +196,7 @@ const MobileIdentityView = {
   methods: {
     async loadIdentity() {
       try {
-        const response = await fetch('/api/identity')
+        const response = await fetch('/api/dev/identity')
         if (response.ok) {
           const data = await response.json()
           Object.assign(this.identity, data)
@@ -266,7 +266,7 @@ const MobileIdentityView = {
       this.isOrchestratorTyping = true
       
       try {
-        const response = await fetch('/api/context-aware-chat', {
+        const response = await fetch('/api/dev/context-aware-chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

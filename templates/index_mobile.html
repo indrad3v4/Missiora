@@ -110,7 +110,7 @@
                 
                 async loadUserData() {
                     try {
-                        const response = await fetch('/api/user-data');
+                        const response = await fetch('/api/dev/user-data');
                         if (response.ok) {
                             const data = await response.json();
                             Object.assign(this.userData, data);

@@ -132,7 +132,7 @@ def api_chat():
 @app.route('/')
 def index():
     """Main application entry point"""
-    return render_template('index_mobile.html')
+    return redirect('/dev')
 
 @app.route('/narrative-chat')
 def narrative_chat():
