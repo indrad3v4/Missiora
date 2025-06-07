@@ -145,8 +145,7 @@ export default {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            user_message: userMessage,
-            address: this.userAddress
+            user_message: userMessage
           })
         });
         
@@ -165,17 +164,17 @@ export default {
             agent: data.agent || 'OrchestratorAgent',
             text: data.reply
           });
-        } else if (response.status === 403 && response.statusText.includes("MetaMask")) {
-          // Handle case where server requires MetaMask auth
+        } else if (response.status === 403) {
+          // Handle case where server requires authentication
           const errorData = await response.json();
           console.log("Authentication required:", errorData);
-          this.requireMetaMask = true;
+          this.requireAuth = true;
           
           this.addMessage({
             id: Date.now(),
             role: 'agent',
             agent: 'OrchestratorAgent',
-            text: "You've reached your free message limit. Please connect with MetaMask to continue using the AI agency."
+            text: "You've reached your free message limit. Please sign in to continue using the AI agency."
           });
         } else {
           const errorData = await response.json();
@@ -198,45 +197,18 @@ export default {
       }
     },
     
-    connectMetaMask() {
-      // If MetaMask is available, request account access
-      if (window.ethereum) {
-        window.ethereum
-          .request({ method: 'eth_requestAccounts' })
-          .then(accounts => {
-            if (accounts.length > 0) {
-              this.userAddress = accounts[0];
-              this.isAuthenticated = true;
-              this.requireMetaMask = false;
-              
-              // Dispatch an event for other components
-              window.dispatchEvent(
-                new CustomEvent('metamaskConnected', { 
-                  detail: { 
-                    address: accounts[0] 
-                  }
-                })
-              );
-            }
-          })
-          .catch(error => {
-            console.error('MetaMask connection error:', error);
-            alert('Could not connect to MetaMask. Please try again.');
-          });
-      } else {
-        // MetaMask is not installed
-        if (this.isMobileBrowser()) {
-          // On mobile, open MetaMask app or app store
-          window.location.href = `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}`;
-        } else {
-          // On desktop, open MetaMask download page
-          window.open('https://metamask.io/download/', '_blank');
-        }
-      }
-    },
-    
-    isMobileBrowser() {
-      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    checkAuthStatus() {
+      // Check if user is authenticated by making a simple API call
+      fetch('/api/auth/status')
+        .then(response => response.json())
+        .then(data => {
+          this.isAuthenticated = data.authenticated || false;
+          this.userId = data.user_id || null;
+        })
+        .catch(error => {
+          console.log('Auth status check failed:', error);
+          this.isAuthenticated = false;
+        });
     },
     
     addMessage(message) {
@@ -287,12 +259,6 @@ export default {
       }
     },
     
-    checkMetaMaskConnection() {
-      // Check if already authenticated in the page context
-      if (window.ethereum && window.ethereum.selectedAddress) {
-        this.isAuthenticated = true;
-        this.userAddress = window.ethereum.selectedAddress;
-      }
-    }
+
   }
 };

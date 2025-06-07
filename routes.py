@@ -153,6 +153,15 @@ def auth_options():
         return redirect(url_for('dashboard'))
     return render_template('auth_options.html')
 
+@app.route('/api/auth/status')
+def auth_status():
+    """Check authentication status for API calls"""
+    return jsonify({
+        'authenticated': current_user.is_authenticated,
+        'user_id': current_user.id if current_user.is_authenticated else None,
+        'username': current_user.username if current_user.is_authenticated else None
+    })
+
 @app.route('/logout')
 @login_required
 def logout():
