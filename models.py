@@ -10,7 +10,8 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=True)  # Password made optional for MetaMask users
     ethereum_address = db.Column(db.String(42), unique=True, nullable=True)  # Add Ethereum address field
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    auth_type = db.Column(db.String(20), default='traditional')  # 'traditional' or 'metamask'
+    auth_type = db.Column(db.String(20), default='traditional')  # 'traditional', 'metamask', or 'replit'
+    replit_user_id = db.Column(db.String(100), unique=True, nullable=True)  # Replit user ID
     
     # Profile information
     first_name = db.Column(db.String(100))

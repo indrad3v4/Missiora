@@ -2,6 +2,7 @@ import logging
 from flask import render_template, redirect, url_for, request, flash, jsonify, session
 from flask_login import login_user, logout_user, login_required, current_user
 import os
+import requests
 from app import app, db
 from models import User, Conversation, Message, UserGoal, UserInsight
 # Import the new agent SDK for handoff capabilities
@@ -23,22 +24,19 @@ def narrative_chat():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    # Redirect to metamask login page for registration
+    # Redirect to authentication options page
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     
-    # Redirect all registration attempts to MetaMask login
-    flash('Please use MetaMask to create an account', 'info')
-    return redirect(url_for('metamask_login_page'))
+    return redirect(url_for('auth_options'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    # Redirect to metamask login page
+    # Redirect to authentication options page
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     
-    # Redirect all login attempts to MetaMask login
-    return redirect(url_for('metamask_login_page'))
+    return redirect(url_for('auth_options'))
 
 @app.route('/metamask', methods=['GET'])
 def metamask_login_page():
@@ -98,6 +96,62 @@ def metamask_login():
     except Exception as e:
         logging.error(f"Error during MetaMask login: {e}")
         return jsonify({'error': 'Authentication failed'}), 500
+
+@app.route('/auth/replit')
+def replit_auth():
+    """Initiate Replit OAuth flow"""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    
+    # Check if we have Replit user info in headers (when running on Replit)
+    replit_user_id = request.headers.get('X-Replit-User-Id')
+    replit_username = request.headers.get('X-Replit-User-Name')
+    replit_email = request.headers.get('X-Replit-User-Email')
+    
+    if replit_user_id and replit_username:
+        # User is authenticated with Replit
+        user = User.query.filter_by(replit_user_id=replit_user_id).first()
+        
+        if user:
+            # Existing user, log them in
+            login_user(user, remember=True)
+            flash('Welcome back!', 'success')
+            return redirect(url_for('dashboard'))
+        else:
+            # Create new user with Replit credentials
+            username = replit_username
+            base_username = username
+            counter = 1
+            
+            # Ensure username is unique
+            while User.query.filter_by(username=username).first():
+                username = f"{base_username}_{counter}"
+                counter += 1
+            
+            new_user = User(
+                username=username,
+                email=replit_email,
+                replit_user_id=replit_user_id,
+                auth_type='replit'
+            )
+            
+            db.session.add(new_user)
+            db.session.commit()
+            
+            login_user(new_user, remember=True)
+            flash('Account created successfully with Replit!', 'success')
+            return redirect(url_for('dashboard'))
+    
+    # If not running on Replit or no user info, redirect to login options
+    flash('Replit authentication is only available when running on Replit', 'info')
+    return redirect(url_for('auth_options'))
+
+@app.route('/auth/options')
+def auth_options():
+    """Show authentication options page"""
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
+    return render_template('auth_options.html')
 
 @app.route('/logout')
 @login_required

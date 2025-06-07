@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+
+{% block title %}Choose Authentication Method{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow">
+                <div class="card-header text-center">
+                    <h3 class="mb-0">Welcome to Missiora</h3>
+                    <p class="text-muted">Sign in to get started</p>
+                </div>
+                <div class="card-body p-5">
+                    <!-- Replit Auth Option -->
+                    <div class="auth-option mb-4">
+                        <a href="{{ url_for('replit_auth') }}" class="btn btn-primary btn-lg w-100 py-3">
+                            <i class="fas fa-code me-2"></i>
+                            Sign in with Replit
+                        </a>
+                        <div class="mt-3">
+                            <h6 class="fw-bold">Quick & Simple</h6>
+                            <ul class="list-unstyled text-muted small">
+                                <li><i class="fas fa-check text-success me-2"></i>One-click authentication</li>
+                                <li><i class="fas fa-check text-success me-2"></i>No passwords to remember</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Secure developer platform</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- MetaMask Option - Commented out for now -->
+                    <!--
+                    <div class="divider my-4">
+                        <span class="text-muted">or</span>
+                    </div>
+
+                    <div class="auth-option">
+                        <a href="{{ url_for('metamask_login_page') }}" class="btn btn-warning btn-lg w-100 py-3 metamask-btn">
+                            <i class="fab fa-ethereum me-2"></i>
+                            Connect with MetaMask
+                        </a>
+                        <div class="mt-3">
+                            <h6 class="fw-bold">Web3 Ready</h6>
+                            <ul class="list-unstyled text-muted small">
+                                <li><i class="fas fa-check text-success me-2"></i>Blockchain authentication</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Control your digital identity</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Future Web3 features</li>
+                            </ul>
+                        </div>
+                    </div>
+                    -->
+
+                    <div class="text-center mt-4">
+                        <p class="text-muted small">
+                            New to AI for solopreneurs? 
+                            <a href="{{ url_for('narrative_chat') }}" class="text-decoration-none">Try our chat first</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.divider {
+    position: relative;
+    text-align: center;
+}
+
+.divider:before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: #dee2e6;
+}
+
+.divider span {
+    background: #fff;
+    padding: 0 1rem;
+}
+
+.auth-option {
+    transition: transform 0.2s ease;
+}
+
+.auth-option:hover {
+    transform: translateY(-2px);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+    transform: translateY(-1px);
+}
+
+.metamask-btn {
+    background: linear-gradient(135deg, #f6851b 0%, #e17c18 100%);
+    border: none;
+    color: white;
+}
+
+.metamask-btn:hover {
+    background: linear-gradient(135deg, #e17c18 0%, #d47516 100%);
+    color: white;
+    transform: translateY(-1px);
+}
+</style>
+{% endblock %}
