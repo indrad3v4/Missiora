@@ -1,0 +1,128 @@
+MISSIORA MR Screen — Technical Breakdown (1080 × 1920 px, device-pixel-ratio ≈ 3)
+(all coordinates in device pixels; percentages in comments)
+
+⸻
+
+1 Global
+
+Layer	Z-index	Notes
+video-feed	0	<video> from getUserMedia, object-fit: cover, filter: brightness(.65)
+mr-hologram-canvas	1	WebGL canvas (three.js) in position:absolute; inset:0
+ui-fixed	2	All HTML/SVG UI, pointer-events:auto, flex column
+
+Typeface: Inter / SF Pro – 16-24px body, 48-64px headlines
+Colour tokens:
+
+--brand-start:#34d399; /* green */
+--brand-end:#3b82f6;   /* blue */
+--glass-bg:rgba(255,255,255,.04);
+--glass-ring:rgba(255,255,255,.15);
+--glass-shadow:0 0 24px rgba(0,0,0,.25);
+
+
+⸻
+
+2 HEADER (1080×190 px ≈10 %)
+
+┌────────────────────────────────────────────────────────┐
+│ MISSIORA  (x48,y64)                                   │
+│  font-size:64px, weight:800, color:#ffffff            │
+│                                                       │
+│                                       ┌────────────┐  │
+│                                       │ Indradeva  │  │
+│ brand ribbon top: linear-gradient 135°→ --brand-*   │
+└────────────────────────────────────────────────────────┘
+
+Capsule (glass-morphism)
+	•	Size ≈ 540 × 140 px, border-radius:32px
+	•	Backdrop-filter: blur(12px)
+	•	Contents grid 2 × 2:
+	•	Name (20 px bold)
+	•	🎯 Reach €1 K
+	•	📍 Kraków
+	•	🕒 Q3 2025, 💰 €150
+
+⸻
+
+3 BODY (“camera feed”, 70 %)
+
+A. Hologram avatar
+	•	Three.js sprite (512 px² PNG with alpha)
+	•	Anchored (position:absolute) at desk center (x:540,y:1080)
+	•	WebGL lighting: rim + bloom (strength:1.0, radius:.4)
+
+B. Tamagotchi growth rings
+	•	Component <GrowthRings stage="1">
+	•	Three SVG concentric circles (radii 88/64/44 px), fill transparent, stroke 6 px
+	•	stroke:#8df2e1 for completed, #3a556e for upcoming
+	•	Positioned 180 px above avatar head.
+
+C. Orbiting facet icons
+	•	3 icons (leaf, target, path) orbit radius 120 px, CSS @keyframes orbit 12s linear infinite.
+	•	Each icon also shows tooltip on hover (Identity/Mission/Roadmap).
+
+D. Speech bubble
+
+<SpeechBubble text="Tell me: what lights you up today?"
+              width=640
+              anchor="center-top"
+              coords=(540,530) />
+
+	•	SVG path with 4 px stroke, glass background rgba(59,130,246,.18).
+
+E. Gesture wheel (right)
+	•	Column of 4 circular buttons 96 px dia.
+	•	Icons (🥕, 💬, 🤝, 🎯); default opacity:.6, hover scale 1.1.
+	•	Emits Socket-IO: {gesture:'feed'}, etc.
+
+F. Roadmap pill (top-left inside body)
+	•	240×60 px, border-radius:30px, brand gradient stroke.
+	•	Text: “Milestone 3 / 7 • Design first offer”.
+
+⸻
+
+4 FOOTER NAV (height ≈ 220 px ≈20 %)
+	•	Frosted container: backdrop-filter: blur(16px); border-radius:24px 24px 0 0.
+	•	Three buttons flex-grow: equal width 360 px, height 124 px.
+	•	Icon left (leaf/target/path) 48 px² SVG.
+	•	Label 24 px semibold.
+	•	Active tab (Roadmap):
+	•	Background gradient var(--brand-start) → var(--brand-end)
+	•	box-shadow: 0 4px 12px rgba(0,0,0,.25)
+
+Accessibility: 44 px tappable inset padding; high-contrast mode toggles flat color backgrounds.
+
+⸻
+
+5 State Machine (simplified)
+
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> AwaitInput : speechBubble\n“lights you up today?”
+    AwaitInput --> Processing : gesture/feed\nor userText
+    Processing --> Idle : agent_reply\nstore.nextStage()
+
+	•	store.growthStage increments on positive reinforcement
+	•	store.activeMilestone triggers route change & capsule update
+
+⸻
+
+6 Asset Checklist
+
+Asset	Format	Notes
+Brand ribbon	CSS	gradient defined globally
+Avatar sprite	PNG / GLB	512 × 512, transparent
+Icons	SVG 24 px	leaf, target, path, carrot, chat, handshake, task
+Fonts	WOFF-2	Inter or SF Pro
+
+
+⸻
+
+7 Performance
+	•	Keep video feed at 720 p to save GPU.
+	•	Run three.js in low-power mode (powerPreference:'low-power').
+	•	Pre-compile component chunks (Vite code-splitting) so header/footer loaded instantly; heavy three.js only when route =/roadmap.
+
+⸻
+
+This spec gives engineers concrete positions, sizes, CSS & component wiring to reproduce the MR “pet-coach” screen exactly as shown.
