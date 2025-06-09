@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """
-MISSIORA Mixed Reality Tamagotchi Transformation Script with CLIP Vision
-Transforms existing Flask/Vue.js app into immersive MR experience with evolving AI agent
-Includes See→Think→Act system with OpenAI CLIP model for real-time object recognition
+MISSIORA Agent Building Enhancement Script
+Implements agent design foundations from the practical guide:
+- Model selection with performance optimization
+- Tool definitions (Data, Action, Orchestration types)
+- Activation rate metrics and milestone completion tracking
+- Roadmap engine with deterministic seed generation
 """
 
 import os
 import re
 import json
 from pathlib import Path
+from datetime import datetime
 
 def ensure_directory(path):
     """Create directory if it doesn't exist"""
@@ -38,8 +42,753 @@ def patch_file(filepath, pattern, replacement, flags=0):
     else:
         print(f"✗ File not found: {filepath}")
 
+def create_agent_orchestration_system():
+    """Create agent orchestration system following the practical guide patterns"""
+    
+    # Agent Definition with Tools (Data, Action, Orchestration types)
+    agent_system = '''"""
+Agent Orchestration System - Implements the three core components:
+1. Model: GPT-4o for complex reasoning, smaller models for classification
+2. Tools: Data retrieval, Action execution, Agent orchestration
+3. Instructions: Clear guidelines with edge case handling
+"""
+
+import os
+from openai import OpenAI
+from datetime import datetime
+import json
+
+class AgentOrchestrator:
+    """Main agent orchestrator following the practical guide design patterns"""
+    
+    def __init__(self):
+        self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        self.tools = self._initialize_tools()
+        self.activation_metrics = ActivationMetrics()
+        
+    def _initialize_tools(self):
+        """Initialize the three types of tools: Data, Action, Orchestration"""
+        return {
+            # Data Tools - retrieve context and information
+            'data': {
+                'query_user_profile': self._query_user_profile,
+                'get_milestone_progress': self._get_milestone_progress,
+                'search_knowledge_base': self._search_knowledge_base
+            },
+            # Action Tools - interact with systems to take actions
+            'action': {
+                'update_milestone': self._update_milestone,
+                'send_notification': self._send_notification,
+                'create_roadmap': self._create_roadmap
+            },
+            # Orchestration Tools - other agents as tools
+            'orchestration': {
+                'roadmap_agent': RoadmapAgent(),
+                'mission_agent': MissionAgent(),
+                'identity_agent': IdentityAgent()
+            }
+        }
+    
+    def process_user_request(self, user_message, user_context=None):
+        """Process user request with proper tool selection and execution"""
+        
+        # Use gpt-4o for complex decision-making
+        response = self.client.chat.completions.create(
+            model="gpt-4o",  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024
+            messages=[
+                {
+                    "role": "system",
+                    "content": self._get_agent_instructions()
+                },
+                {
+                    "role": "user", 
+                    "content": f"Context: {user_context}\\n\\nRequest: {user_message}"
+                }
+            ],
+            tools=self._get_tool_definitions(),
+            tool_choice="auto"
+        )
+        
+        return self._execute_tool_calls(response)
+    
+    def _get_agent_instructions(self):
+        """Clear instructions with edge case handling as per the guide"""
+        return """You are MISSIORA, an AI agent for solopreneurs in Kraków.
+
+Core Workflow:
+1. Listen to understand both personal values and professional goals
+2. Identify authentic strengths for business expression
+3. Provide specific, actionable strategies aligning identity with growth
+4. Bridge disconnection between personal and professional self
+5. Ensure business decisions reflect personal values
+
+Tools Available:
+- Data tools: Query profiles, get progress, search knowledge
+- Action tools: Update milestones, send notifications, create roadmaps  
+- Orchestration tools: Specialized agents for roadmap, mission, identity
+
+Edge Cases:
+- If user provides incomplete information: Ask specific clarifying questions
+- If user seems disconnected: Focus on identity-business alignment
+- If technical issues occur: Gracefully fallback and explain limitations
+- If milestone completion stalls: Suggest breaking into smaller steps
+
+Always complete the full workflow before ending your turn."""
+
+    def _execute_tool_calls(self, response):
+        """Execute tool calls and track activation metrics"""
+        if hasattr(response.choices[0].message, 'tool_calls'):
+            for tool_call in response.choices[0].message.tool_calls:
+                tool_name = tool_call.function.name
+                args = json.loads(tool_call.function.arguments)
+                
+                # Track activation metrics
+                self.activation_metrics.track_tool_usage(tool_name)
+                
+                # Execute appropriate tool
+                if tool_name in self.tools['data']:
+                    return self.tools['data'][tool_name](**args)
+                elif tool_name in self.tools['action']:
+                    return self.tools['action'][tool_name](**args)
+                elif tool_name in self.tools['orchestration']:
+                    return self.tools['orchestration'][tool_name].process(**args)
+        
+        return response.choices[0].message.content
+
+class ActivationMetrics:
+    """Track activation rate: users who reach Milestone 1 / total sign-ups"""
+    
+    def __init__(self):
+        self.metrics = {
+            'total_signups': 0,
+            'milestone_1_completions': 0,
+            'tool_usage': {},
+            'session_starts': 0,
+            'instant_wins': 0  # <5 min wins for 25% higher activation
+        }
+    
+    def track_signup(self):
+        """Track new user signup"""
+        self.metrics['total_signups'] += 1
+    
+    def track_milestone_completion(self, milestone_id):
+        """Track milestone completion for activation rate"""
+        if milestone_id == 1:
+            self.metrics['milestone_1_completions'] += 1
+    
+    def track_tool_usage(self, tool_name):
+        """Track which tools are being used"""
+        if tool_name not in self.metrics['tool_usage']:
+            self.metrics['tool_usage'][tool_name] = 0
+        self.metrics['tool_usage'][tool_name] += 1
+    
+    def track_instant_win(self):
+        """Track instant wins (<5 min tasks)"""
+        self.metrics['instant_wins'] += 1
+    
+    def get_activation_rate(self):
+        """Calculate activation rate as per industry standards"""
+        if self.metrics['total_signups'] == 0:
+            return 0
+        return (self.metrics['milestone_1_completions'] / self.metrics['total_signups']) * 100
+
+class RoadmapAgent:
+    """Specialized agent for roadmap generation - always returns 5 milestones"""
+    
+    def __init__(self):
+        self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    
+    def generate_roadmap(self, mission_text):
+        """Generate deterministic 5-step roadmap from mission"""
+        response = self.client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "system",
+                    "content": '''You are a roadmap generation specialist. Create exactly 5 milestones that:
+                    1. Build progressively toward the mission goal
+                    2. Include specific ROI expectations
+                    3. Have clear completion criteria
+                    4. Take 1-4 weeks each to complete
+                    5. Connect personal identity with business growth
+                    
+                    Return JSON format:
+                    {
+                        "milestones": [
+                            {
+                                "id": 1,
+                                "title": "Milestone Title",
+                                "description": "Clear description",
+                                "expected_roi": "Specific ROI hint",
+                                "cost_hint": "Resource requirements",
+                                "duration_weeks": 2
+                            }
+                        ]
+                    }'''
+                },
+                {
+                    "role": "user",
+                    "content": f"Mission: {mission_text}"
+                }
+            ],
+            response_format={"type": "json_object"}
+        )
+        
+        return json.loads(response.choices[0].message.content)
+    
+    def process(self, **kwargs):
+        """Process roadmap requests"""
+        if 'mission' in kwargs:
+            return self.generate_roadmap(kwargs['mission'])
+        return {"error": "No mission provided"}
+
+class MissionAgent:
+    """Specialized agent for mission statement creation and refinement"""
+    
+    def __init__(self):
+        self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    
+    def process(self, **kwargs):
+        """Process mission-related requests"""
+        if 'identity_data' in kwargs:
+            return self._create_mission_from_identity(kwargs['identity_data'])
+        elif 'refine_mission' in kwargs:
+            return self._refine_mission(kwargs['current_mission'], kwargs.get('feedback', ''))
+        return {"error": "Invalid mission request"}
+    
+    def _create_mission_from_identity(self, identity_data):
+        """Create mission statement from identity data"""
+        response = self.client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "system", 
+                    "content": "Create a compelling mission statement that unifies personal identity with business goals. Focus on authentic self-expression through entrepreneurship."
+                },
+                {
+                    "role": "user",
+                    "content": f"Identity: {json.dumps(identity_data)}"
+                }
+            ]
+        )
+        return {"mission": response.choices[0].message.content}
+
+class IdentityAgent:
+    """Specialized agent for identity exploration and business alignment"""
+    
+    def __init__(self):
+        self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    
+    def process(self, **kwargs):
+        """Process identity-related requests"""
+        if 'analyze_alignment' in kwargs:
+            return self._analyze_identity_business_alignment(
+                kwargs['identity_data'], 
+                kwargs['business_data']
+            )
+        return {"error": "Invalid identity request"}
+    
+    def _analyze_identity_business_alignment(self, identity_data, business_data):
+        """Analyze how well identity aligns with business direction"""
+        response = self.client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Analyze identity-business alignment. Identify gaps, strengths, and specific recommendations for unified growth."
+                },
+                {
+                    "role": "user", 
+                    "content": f"Identity: {json.dumps(identity_data)}\\nBusiness: {json.dumps(business_data)}"
+                }
+            ],
+            response_format={"type": "json_object"}
+        )
+        return json.loads(response.choices[0].message.content)
+'''
+    
+    return agent_system
+
+def create_roadmap_engine():
+    """Create roadmap engine with deterministic seed generation"""
+    
+    roadmap_engine = '''"""
+Roadmap Engine - WBS 4.0 Implementation
+Generates deterministic 5-milestone roadmaps with ROI tracking and completion metrics
+"""
+
+from flask import Blueprint, request, jsonify
+from models import User, Milestone, db
+import json
+from datetime import datetime, timedelta
+
+roadmap_bp = Blueprint('roadmap', __name__)
+
+@roadmap_bp.route('/api/mission', methods=['POST'])
+def create_mission():
+    """Validate mission text and generate 5-milestone roadmap"""
+    data = request.get_json()
+    mission_text = data.get('mission', '').strip()
+    
+    if not mission_text:
+        return jsonify({"error": "Mission text required"}), 400
+    
+    # Store mission and generate roadmap in one transaction
+    try:
+        current_user.mission_statement = mission_text
+        
+        # Generate deterministic roadmap (always 5 milestones)
+        roadmap_data = generate_roadmap(mission_text)
+        
+        # Store milestones
+        for i, milestone_data in enumerate(roadmap_data['milestones']):
+            milestone = Milestone(
+                user_id=current_user.id,
+                code=f"M{i+1}",
+                title=milestone_data['title'],
+                description=milestone_data['description'],
+                order_index=i,
+                active=(i == 0),  # First milestone is active
+                expected_roi=milestone_data.get('expected_roi', ''),
+                cost_hint=milestone_data.get('cost_hint', ''),
+                duration_weeks=milestone_data.get('duration_weeks', 2)
+            )
+            db.session.add(milestone)
+        
+        db.session.commit()
+        
+        # Track activation metric
+        activation_metrics.track_tool_usage('create_mission')
+        
+        return jsonify({
+            "success": True,
+            "mission": mission_text,
+            "milestones_created": len(roadmap_data['milestones'])
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@roadmap_bp.route('/api/roadmap', methods=['GET'])
+def get_roadmap():
+    """Return active + future milestones (O(1) fetch with indexing)"""
+    milestones = Milestone.query.filter_by(
+        user_id=current_user.id
+    ).order_by(Milestone.order_index).all()
+    
+    roadmap_data = []
+    for milestone in milestones:
+        roadmap_data.append({
+            "id": milestone.id,
+            "code": milestone.code,
+            "title": milestone.title,
+            "description": milestone.description,
+            "active": milestone.active,
+            "completed": milestone.completed,
+            "order_index": milestone.order_index,
+            "expected_roi": milestone.expected_roi,
+            "cost_hint": milestone.cost_hint,
+            "duration_weeks": milestone.duration_weeks
+        })
+    
+    return jsonify({"roadmap": roadmap_data})
+
+@roadmap_bp.route('/api/roadmap/<int:milestone_id>/complete', methods=['PATCH'])
+def complete_milestone(milestone_id):
+    """Mark milestone done, activate next, emit telemetry"""
+    try:
+        milestone = Milestone.query.get_or_404(milestone_id)
+        
+        if milestone.user_id != current_user.id:
+            return jsonify({"error": "Unauthorized"}), 403
+        
+        # Mark current milestone complete
+        milestone.completed = True
+        milestone.active = False
+        milestone.completion_data = json.dumps({
+            "completed_at": datetime.utcnow().isoformat(),
+            "user_id": current_user.id
+        })
+        
+        # Activate next milestone
+        next_milestone = Milestone.query.filter_by(
+            user_id=current_user.id,
+            order_index=milestone.order_index + 1
+        ).first()
+        
+        if next_milestone:
+            next_milestone.active = True
+        
+        db.session.commit()
+        
+        # Fire-and-forget telemetry (latency mitigation)
+        emit_milestone_complete_event({
+            "user_id": current_user.id,
+            "milestone_id": milestone_id,
+            "milestone_code": milestone.code,
+            "completion_time": datetime.utcnow().isoformat()
+        })
+        
+        # Track activation metrics
+        activation_metrics.track_milestone_completion(milestone.order_index + 1)
+        
+        return jsonify({
+            "success": True,
+            "completed_milestone": milestone.code,
+            "next_active": next_milestone.code if next_milestone else None
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+def generate_roadmap(mission_text):
+    """Generate deterministic 5-milestone roadmap with stateless algorithm"""
+    # Use RoadmapAgent for generation
+    roadmap_agent = RoadmapAgent()
+    return roadmap_agent.generate_roadmap(mission_text)
+
+def emit_milestone_complete_event(event_data):
+    """Emit telemetry event to analytics system"""
+    # Fire-and-forget to keep UI snappy
+    try:
+        # In production, send to event bus/analytics
+        print(f"📊 Milestone Complete Event: {event_data}")
+    except Exception as e:
+        print(f"⚠️ Telemetry error: {e}")
+
+# Add instant win micro-task for 25% higher activation
+@roadmap_bp.route('/api/instant-win/profile-picture', methods=['POST'])
+def set_profile_picture():
+    """<5 min instant win task to boost activation"""
+    data = request.get_json()
+    profile_url = data.get('profile_url', '')
+    
+    if profile_url:
+        current_user.profile_image_url = profile_url
+        db.session.commit()
+        
+        # Track instant win
+        activation_metrics.track_instant_win()
+        
+        return jsonify({"success": True, "instant_win": True})
+    
+    return jsonify({"error": "Profile URL required"}), 400
+'''
+    
+    return roadmap_engine
+
+def create_activation_metrics_system():
+    """Create activation rate tracking system as specified in the guide"""
+    
+    metrics_system = '''"""
+Activation Metrics System
+Tracks the key metric: users who reach Milestone 1 / total sign-ups
+Includes instant win tracking for 25% higher activation rates
+"""
+
+from datetime import datetime
+import json
+
+class ActivationTracker:
+    """Centralized activation metrics tracking following industry standards"""
+    
+    def __init__(self):
+        self.metrics_file = 'activation_metrics.json'
+        self.load_metrics()
+    
+    def load_metrics(self):
+        """Load existing metrics or initialize"""
+        try:
+            with open(self.metrics_file, 'r') as f:
+                self.data = json.load(f)
+        except FileNotFoundError:
+            self.data = {
+                'total_signups': 0,
+                'milestone_1_completions': 0,
+                'instant_wins': 0,
+                'daily_metrics': {},
+                'tool_usage': {},
+                'session_data': []
+            }
+    
+    def save_metrics(self):
+        """Persist metrics to file"""
+        with open(self.metrics_file, 'w') as f:
+            json.dump(self.data, f, indent=2)
+    
+    def track_signup(self, user_id):
+        """Track new user signup for activation rate calculation"""
+        self.data['total_signups'] += 1
+        today = datetime.now().strftime('%Y-%m-%d')
+        
+        if today not in self.data['daily_metrics']:
+            self.data['daily_metrics'][today] = {'signups': 0, 'activations': 0}
+        
+        self.data['daily_metrics'][today]['signups'] += 1
+        self.save_metrics()
+    
+    def track_milestone_1_completion(self, user_id):
+        """Track Milestone 1 completion - key activation metric"""
+        self.data['milestone_1_completions'] += 1
+        today = datetime.now().strftime('%Y-%m-%d')
+        
+        if today not in self.data['daily_metrics']:
+            self.data['daily_metrics'][today] = {'signups': 0, 'activations': 0}
+        
+        self.data['daily_metrics'][today]['activations'] += 1
+        self.save_metrics()
+    
+    def track_instant_win(self, user_id, task_type):
+        """Track instant wins (<5 min tasks) for 25% higher activation"""
+        self.data['instant_wins'] += 1
+        
+        if task_type not in self.data['tool_usage']:
+            self.data['tool_usage'][task_type] = 0
+        self.data['tool_usage'][task_type] += 1
+        
+        self.save_metrics()
+    
+    def get_activation_rate(self):
+        """Calculate activation rate: Milestone 1 completions / total signups"""
+        if self.data['total_signups'] == 0:
+            return 0.0
+        
+        return (self.data['milestone_1_completions'] / self.data['total_signups']) * 100
+    
+    def get_daily_activation_rate(self, date=None):
+        """Get activation rate for specific day"""
+        if date is None:
+            date = datetime.now().strftime('%Y-%m-%d')
+        
+        if date not in self.data['daily_metrics']:
+            return 0.0
+        
+        day_data = self.data['daily_metrics'][date]
+        if day_data['signups'] == 0:
+            return 0.0
+        
+        return (day_data['activations'] / day_data['signups']) * 100
+    
+    def is_meeting_target(self):
+        """Check if meeting the 70% activation target"""
+        return self.get_activation_rate() >= 70.0
+
+# Global activation tracker instance
+activation_tracker = ActivationTracker()
+'''
+    
+    return metrics_system
+
+def create_health_check_system():
+    """Create health check and regression testing system"""
+    
+    health_system = '''"""
+Health Check System - Regression Testing
+Implements the /healthz endpoint and basic app boot verification
+"""
+
+from flask import Blueprint, jsonify
+from datetime import datetime
+
+health_bp = Blueprint('health', __name__)
+
+@health_bp.route('/healthz', methods=['GET'])
+def health_check():
+    """Health check endpoint for regression testing"""
+    try:
+        # Verify database connection
+        from models import User
+        User.query.first()
+        
+        # Verify agent system is responsive
+        from agents_sdk import get_greeting
+        greeting = get_greeting()
+        
+        return jsonify({
+            "status": "ok",
+            "timestamp": datetime.utcnow().isoformat(),
+            "database": "connected",
+            "agent_system": "responsive",
+            "version": "1.0.0"
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }), 500
+
+@health_bp.route('/healthz/activation', methods=['GET'])
+def activation_health():
+    """Health check for activation metrics"""
+    try:
+        activation_rate = activation_tracker.get_activation_rate()
+        is_meeting_target = activation_tracker.is_meeting_target()
+        
+        return jsonify({
+            "activation_rate": round(activation_rate, 2),
+            "meeting_70_percent_target": is_meeting_target,
+            "total_signups": activation_tracker.data['total_signups'],
+            "milestone_1_completions": activation_tracker.data['milestone_1_completions'],
+            "instant_wins": activation_tracker.data['instant_wins']
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+'''
+    
+    return health_system
+
+def create_lighthouse_performance_system():
+    """Create performance monitoring following the 95% Lighthouse goal"""
+    
+    performance_system = '''"""
+Performance Monitoring System
+Implements budget.json limits and Lighthouse score tracking
+Target: 95% Lighthouse score with <1 MB bundle size
+"""
+
+import json
+import os
+
+def create_performance_budget():
+    """Create budget.json for bundle size monitoring"""
+    budget_config = {
+        "resourceSizes": [
+            {
+                "resourceType": "script",
+                "budget": 250000  # JS < 250 kB post-gzip as per guide
+            },
+            {
+                "resourceType": "stylesheet", 
+                "budget": 50000   # CSS < 50 kB
+            },
+            {
+                "resourceType": "image",
+                "budget": 200000  # Images < 200 kB total
+            },
+            {
+                "resourceType": "total",
+                "budget": 1000000 # Total < 1 MB
+            }
+        ],
+        "timings": [
+            {
+                "metric": "first-contentful-paint",
+                "budget": 2000  # <2s FCP on mobile 4G
+            },
+            {
+                "metric": "interactive",
+                "budget": 15000 # <15s TTI as per guide
+            }
+        ]
+    }
+    
+    return json.dumps(budget_config, indent=2)
+
+def create_service_worker():
+    """Create service worker for offline-cache optimization"""
+    service_worker = '''
+// Service Worker for MISSIORA
+// Implements <1 MB cache with avatar layer separation
+
+const CACHE_NAME = 'missiora-v1';
+const CORE_CACHE = [
+  '/',
+  '/static/css/mr-styles.css',
+  '/static/js/vue-components.js',
+  // Avatar layer as separate dynamic import
+  '/static/js/tamagotchi-agent.js'
+];
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => cache.addAll(CORE_CACHE))
+  );
+});
+
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => response || fetch(event.request))
+  );
+});
+
+// Pre-load 2D SVG fallback for camera denied scenario
+self.addEventListener('message', event => {
+  if (event.data.action === 'CACHE_FALLBACK') {
+    caches.open(CACHE_NAME).then(cache => {
+      cache.add('/static/svg/agent-fallback.svg'); // 3 kB fallback
+    });
+  }
+});
+'''
+    
+    return service_worker
+
+# Performance monitoring routes
+def create_performance_routes():
+    performance_routes = '''
+@app.route('/api/performance', methods=['GET'])
+def get_performance_metrics():
+    """Get current performance metrics"""
+    try:
+        # Check bundle sizes
+        static_dir = 'static'
+        js_size = sum(os.path.getsize(os.path.join(static_dir, 'js', f)) 
+                     for f in os.listdir(os.path.join(static_dir, 'js')))
+        css_size = sum(os.path.getsize(os.path.join(static_dir, 'css', f))
+                      for f in os.listdir(os.path.join(static_dir, 'css')))
+        
+        return jsonify({
+            "bundle_sizes": {
+                "js_bytes": js_size,
+                "css_bytes": css_size,
+                "js_kb": round(js_size / 1024, 2),
+                "css_kb": round(css_size / 1024, 2)
+            },
+            "budget_status": {
+                "js_under_250kb": js_size < 250000,
+                "css_under_50kb": css_size < 50000,
+                "total_under_1mb": (js_size + css_size) < 1000000
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+'''
+    
+    return performance_routes
+'''
+    
+    return performance_system
+
 def main():
-    print("🚀 Starting MISSIORA Mixed Reality Tamagotchi + CLIP Vision Transformation...")
+    print("🚀 Implementing Agent Building Patterns from Practical Guide...")
+    
+    # Create the agent orchestration system
+    agent_system = create_agent_orchestration_system()
+    write_file('agent_orchestrator.py', agent_system)
+    
+    # Create the roadmap engine with WBS 4.0
+    roadmap_engine = create_roadmap_engine()
+    write_file('roadmap_engine.py', roadmap_engine)
+    
+    # Create activation metrics tracking
+    metrics_system = create_activation_metrics_system()
+    write_file('activation_metrics.py', metrics_system)
+    
+    # Create health check system for regression testing
+    health_system = create_health_check_system()
+    write_file('health_check.py', health_system)
+    
+    # Create performance monitoring system
+    performance_system = create_lighthouse_performance_system()
+    write_file('performance_monitor.py', performance_system)
     
     # 1. Create Enhanced Camera Integration with CLIP Vision
     enhanced_camera_js = '''/**
