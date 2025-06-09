@@ -20,16 +20,30 @@ app.register_blueprint(make_replit_blueprint(), url_prefix="/auth")
 
 # Add these routes to routes.py for agent state management
 
-@app.route('/api/agent-state', methods=['GET'])
-@login_required
-            'identity': identity_completion,
-            'mission': mission_completion,
-            'roadmap': roadmap_completion,
-            'total': total_completion
+def get_agent_state():
+    """Get current agent state and completion data"""
+    user = current_user
+    
+    # Calculate completion percentages
+    identity_completion = calculate_identity_completion(user)
+    mission_completion = calculate_mission_completion(user)
+    roadmap_completion = calculate_roadmap_completion(user)
+    
+    total_completion = (identity_completion * 0.33) + (mission_completion * 0.33) + (roadmap_completion * 0.34)
+    
+    # Determine agent stage
+    stage = "seed" if total_completion <= 25 else "sprout" if total_completion <= 50 else "bloom" if total_completion <= 80 else "master"
+    
+    return jsonify({
+        "completion": {
+            "identity": identity_completion,
+            "mission": mission_completion,
+            "roadmap": roadmap_completion,
+            "total": total_completion
         },
-        'stage': stage,
-        'message': get_agent_message(stage),
-        'mood': get_agent_mood(total_completion)
+        "stage": stage,
+        "message": get_agent_message(stage),
+        "mood": get_agent_mood(total_completion)
     })
 
 def calculate_identity_completion(user):
@@ -104,16 +118,32 @@ def get_agent_mood(completion):
 
 # Add these routes to routes.py for agent state management
 
-@app.route('/api/agent-state', methods=['GET'])
+@app.route("/api/agent-state", methods=["GET"])
 @login_required
-            'identity': identity_completion,
-            'mission': mission_completion,
-            'roadmap': roadmap_completion,
-            'total': total_completion
+def get_agent_state():
+    """Get current agent state and completion data"""
+    user = current_user
+    
+    # Calculate completion percentages
+    identity_completion = calculate_identity_completion(user)
+    mission_completion = calculate_mission_completion(user)
+    roadmap_completion = calculate_roadmap_completion(user)
+    
+    total_completion = (identity_completion * 0.33) + (mission_completion * 0.33) + (roadmap_completion * 0.34)
+    
+    # Determine agent stage
+    stage = "seed" if total_completion <= 25 else "sprout" if total_completion <= 50 else "bloom" if total_completion <= 80 else "master"
+    
+    return jsonify({
+        "completion": {
+            "identity": identity_completion,
+            "mission": mission_completion,
+            "roadmap": roadmap_completion,
+            "total": total_completion
         },
-        'stage': stage,
-        'message': get_agent_message(stage),
-        'mood': get_agent_mood(total_completion)
+        "stage": stage,
+        "message": get_agent_message(stage),
+        "mood": get_agent_mood(total_completion)
     })
 
 def calculate_identity_completion(user):
@@ -188,17 +218,6 @@ def get_agent_mood(completion):
 
 # Add these routes to routes.py for agent state management
 
-@app.route('/api/agent-state', methods=['GET'])
-@login_required
-            'identity': identity_completion,
-            'mission': mission_completion,
-            'roadmap': roadmap_completion,
-            'total': total_completion
-        },
-        'stage': stage,
-        'message': get_agent_message(stage),
-        'mood': get_agent_mood(total_completion)
-    })
 
 def calculate_identity_completion(user):
     """Calculate identity completion percentage"""
