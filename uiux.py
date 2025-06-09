@@ -38,15 +38,359 @@ def patch_file(filepath, pattern, replacement, flags=0):
         print(f"✗ File not found: {filepath}")
 
 def main():
-    print("🚀 Starting MISSIORA Mixed Reality Tamagotchi Transformation...")
+    print("🚀 Starting MISSIORA CLIP Vision + Agent Action System...")
     
-    # 1. Create WebGL Agent Renderer Component
-    agent_renderer_js = '''/**
- * WebGL Tamagotchi Agent Renderer
- * Renders evolving AI companion with Three.js
+    # 1. Enhanced Vision Analysis Flask Route
+    vision_route = '''
+@app.route('/api/vision/analyze', methods=['POST'])
+@login_required
+def analyze_vision():
+    """Analyze camera frame with CLIP + CV for object detection and actions"""
+    try:
+        data = request.get_json()
+        frame_data = data.get('frame')
+        
+        if not frame_data:
+            return jsonify({'error': 'No frame data provided'}), 400
+        
+        # Decode base64 image
+        import base64
+        import cv2
+        import numpy as np
+        from PIL import Image
+        import io
+        
+        # Remove data URL prefix
+        image_data = frame_data.split(',')[1]
+        image_bytes = base64.b64decode(image_data)
+        
+        # Convert to OpenCV format
+        image = Image.open(io.BytesIO(image_bytes))
+        cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        
+        # CLIP Analysis for object recognition
+        clip_results = analyze_with_clip(image)
+        
+        # Computer Vision for actionable objects
+        cv_results = detect_actionable_objects(cv_image)
+        
+        # Agent personality response
+        agent_response = generate_agent_response(clip_results, cv_results)
+        
+        return jsonify({
+            'objects': clip_results,
+            'actions': cv_results,
+            'agent_response': agent_response,
+            'timestamp': time.time()
+        })
+        
+    except Exception as e:
+        logger.error(f"Vision analysis error: {e}")
+        return jsonify({'error': 'Analysis failed'}), 500
+
+def analyze_with_clip(image):
+    """Use CLIP to identify objects in image"""
+    # Placeholder for CLIP integration
+    # In production, this would use OpenAI's CLIP model
+    common_objects = [
+        'laptop', 'computer', 'phone', 'plant', 'book', 'coffee', 'notebook',
+        'business card', 'whiteboard', 'monitor', 'keyboard', 'mouse'
+    ]
+    
+    # Mock CLIP analysis - replace with actual CLIP implementation
+    detected_objects = [
+        {
+            'label': 'laptop',
+            'confidence': 0.85,
+            'position': {'x': 0.5, 'y': 0.3},
+            'emotion': 'excited'
+        }
+    ]
+    
+    return detected_objects
+
+def detect_actionable_objects(cv_image):
+    """Detect QR codes, text, business cards using OpenCV"""
+    actions = []
+    
+    # QR Code Detection
+    qr_detector = cv2.QRCodeDetector()
+    data, bbox, _ = qr_detector.detectAndDecode(cv_image)
+    
+    if data:
+        actions.append({
+            'type': 'qr_code',
+            'data': data,
+            'bbox': bbox.tolist() if bbox is not None else None,
+            'action': 'scan_qr',
+            'description': 'QR code detected - tap to scan'
+        })
+    
+    # Text Detection (simplified)
+    gray = cv2.cvtColor(cv_image, cv2.COLOR_BGR2GRAY)
+    # Add OCR detection here using pytesseract or similar
+    
+    return actions
+
+def generate_agent_response(clip_results, cv_results):
+    """Generate personality response based on detected objects"""
+    if not clip_results and not cv_results:
+        return {
+            'message': "I'm looking around... what should we explore? 👀",
+            'mood': 'curious',
+            'eye_target': None
+        }
+    
+    # Prioritize actionable objects
+    if cv_results:
+        action = cv_results[0]
+        if action['type'] == 'qr_code':
+            return {
+                'message': "I see a QR code! Should I help you scan it? 📱",
+                'mood': 'excited',
+                'eye_target': action.get('bbox')
+            }
+    
+    # React to CLIP objects
+    if clip_results:
+        obj = clip_results[0]
+        responses = {
+            'laptop': "A laptop! Ready to build something amazing? 💻✨",
+            'plant': "Beautiful plant! Growth takes time, just like your business 🌱",
+            'book': "Learning time! What insights are you gaining? 📚",
+            'coffee': "Fuel for creativity! What's brewing in your mind? ☕"
+        }
+        
+        return {
+            'message': responses.get(obj['label'], f"Interesting {obj['label']}! How does this inspire your mission? 🤔"),
+            'mood': obj.get('emotion', 'curious'),
+            'eye_target': obj.get('position')
+        }
+    
+    return {
+        'message': "I see something new! Tell me about it 👀",
+        'mood': 'curious',
+        'eye_target': None
+    }
+'''
+    
+    write_file('vision_routes.py', vision_route)
+    
+    # 2. Enhanced Camera Integration with Vision Analysis
+    camera_integration_js = '''/**
+ * Enhanced Camera Integration with CLIP Vision Analysis
  */
 
-import * as THREE from 'https://unpkg.com/three@0.157.0/build/three.module.js';
+class CameraIntegration {
+    constructor() {
+        this.videoElement = null;
+        this.isActive = false;
+        this.analysisInterval = null;
+        this.overlayCanvas = null;
+        this.overlayContext = null;
+    }
+    
+    async initialize() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: { 
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    facingMode: 'environment'
+                }
+            });
+            
+            this.videoElement = document.getElementById('camera-feed');
+            if (this.videoElement) {
+                this.videoElement.srcObject = stream;
+                this.videoElement.play();
+                this.isActive = true;
+                
+                // Initialize overlay canvas
+                this.setupOverlay();
+                
+                // Start vision analysis
+                this.startVisionAnalysis();
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Camera access failed:', error);
+            return false;
+        }
+    }
+    
+    setupOverlay() {
+        this.overlayCanvas = document.getElementById('vision-overlay');
+        if (this.overlayCanvas && this.videoElement) {
+            this.overlayContext = this.overlayCanvas.getContext('2d');
+            
+            // Match video dimensions
+            const resizeOverlay = () => {
+                this.overlayCanvas.width = this.videoElement.videoWidth;
+                this.overlayCanvas.height = this.videoElement.videoHeight;
+            };
+            
+            this.videoElement.addEventListener('loadedmetadata', resizeOverlay);
+            window.addEventListener('resize', resizeOverlay);
+        }
+    }
+    
+    startVisionAnalysis() {
+        if (this.analysisInterval) {
+            clearInterval(this.analysisInterval);
+        }
+        
+        this.analysisInterval = setInterval(() => {
+            this.analyzeCurrentFrame();
+        }, 2000); // Analyze every 2 seconds
+    }
+    
+    async analyzeCurrentFrame() {
+        if (!this.videoElement || !this.isActive) return;
+        
+        const frameData = this.captureFrame();
+        if (!frameData) return;
+        
+        try {
+            const response = await fetch('/api/vision/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    frame: frameData
+                })
+            });
+            
+            if (response.ok) {
+                const analysis = await response.json();
+                this.displayVisionResults(analysis);
+                this.notifyAgent(analysis);
+            }
+        } catch (error) {
+            console.warn('Vision analysis failed:', error);
+        }
+    }
+    
+    captureFrame() {
+        if (!this.videoElement) return null;
+        
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = this.videoElement.videoWidth;
+        canvas.height = this.videoElement.videoHeight;
+        
+        ctx.drawImage(this.videoElement, 0, 0);
+        return canvas.toDataURL('image/jpeg', 0.8);
+    }
+    
+    displayVisionResults(analysis) {
+        if (!this.overlayContext) return;
+        
+        // Clear previous overlays
+        this.overlayContext.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
+        
+        // Draw object labels and bounding boxes
+        analysis.objects?.forEach(obj => {
+            this.drawObjectLabel(obj);
+        });
+        
+        // Draw action indicators
+        analysis.actions?.forEach(action => {
+            this.drawActionIndicator(action);
+        });
+    }
+    
+    drawObjectLabel(obj) {
+        const ctx = this.overlayContext;
+        const canvas = this.overlayCanvas;
+        
+        // Convert normalized position to canvas coordinates
+        const x = obj.position.x * canvas.width;
+        const y = obj.position.y * canvas.height;
+        
+        // Draw floating label
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.font = '16px Arial';
+        
+        const text = `${obj.label} (${Math.round(obj.confidence * 100)}%)`;
+        const textWidth = ctx.measureText(text).width;
+        
+        // Background
+        ctx.fillRect(x - textWidth/2 - 10, y - 30, textWidth + 20, 25);
+        ctx.strokeRect(x - textWidth/2 - 10, y - 30, textWidth + 20, 25);
+        
+        // Text
+        ctx.fillStyle = 'black';
+        ctx.fillText(text, x - textWidth/2, y - 10);
+        
+        // Indicator dot
+        ctx.fillStyle = this.getMoodColor(obj.emotion);
+        ctx.beginPath();
+        ctx.arc(x, y, 8, 0, 2 * Math.PI);
+        ctx.fill();
+    }
+    
+    drawActionIndicator(action) {
+        if (!action.bbox) return;
+        
+        const ctx = this.overlayContext;
+        const bbox = action.bbox[0]; // First bounding box
+        
+        // Draw bounding box
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(bbox[0], bbox[1], bbox[2] - bbox[0], bbox[3] - bbox[1]);
+        
+        // Draw action button
+        const centerX = (bbox[0] + bbox[2]) / 2;
+        const centerY = bbox[1] - 20;
+        
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+        ctx.fillRect(centerX - 40, centerY - 15, 80, 30);
+        
+        ctx.fillStyle = 'white';
+        ctx.font = '12px Arial';
+        ctx.fillText(action.description, centerX - 35, centerY + 5);
+    }
+    
+    getMoodColor(emotion) {
+        const colors = {
+            'excited': '#ff6b6b',
+            'curious': '#4ecdc4',
+            'happy': '#ffe66d',
+            'thinking': '#a8e6cf'
+        };
+        return colors[emotion] || '#cccccc';
+    }
+    
+    notifyAgent(analysis) {
+        // Notify the Tamagotchi agent about vision results
+        const event = new CustomEvent('visionAnalysis', {
+            detail: analysis
+        });
+        window.dispatchEvent(event);
+    }
+    
+    destroy() {
+        if (this.analysisInterval) {
+            clearInterval(this.analysisInterval);
+        }
+        
+        if (this.videoElement && this.videoElement.srcObject) {
+            const tracks = this.videoElement.srcObject.getTracks();
+            tracks.forEach(track => track.stop());
+        }
+        
+        this.isActive = false;
+    }
+}'''
+    
+    write_file('static/js/camera-integration.js', camera_integration_js)module.js';
 
 export class TamagotchiAgent {
     constructor(container) {
