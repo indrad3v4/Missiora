@@ -3,6 +3,7 @@ from flask import render_template, redirect, url_for, request, flash, jsonify, s
 from flask_login import login_user, logout_user, login_required, current_user
 import os
 import requests
+import time
 from app import app, db
 from models import User, Conversation, Message, UserGoal, UserInsight, Milestone
 # Import the new agent SDK for handoff capabilities
@@ -12,6 +13,9 @@ import json
 from web3 import Web3
 from eth_account.messages import encode_defunct
 from replit_auth import make_replit_blueprint, require_login
+# Import agent building patterns
+from health_check import health_bp
+from activation_metrics import activation_tracker
 
 # Register Replit Auth blueprint
 app.register_blueprint(make_replit_blueprint(), url_prefix="/auth")
@@ -911,7 +915,7 @@ def analyze_vision():
         client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
         
         response = client.chat.completions.create(
-            model="gpt-4-vision-preview",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "user",

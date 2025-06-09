@@ -691,7 +691,7 @@ def create_performance_budget():
 
 def create_service_worker():
     """Create service worker for offline-cache optimization"""
-    service_worker = '''
+    service_worker = """
 // Service Worker for MISSIORA
 // Implements <1 MB cache with avatar layer separation
 
@@ -726,7 +726,7 @@ self.addEventListener('message', event => {
     });
   }
 });
-'''
+"""
     
     return service_worker
 
