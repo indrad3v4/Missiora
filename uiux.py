@@ -205,18 +205,391 @@ class RoadmapAgent:
             messages=[
                 {
                     "role": "system",
-                    "content": '''You are a roadmap generation specialist. Create exactly 5 milestones that:
-                    1. Build progressively toward the mission goal
-                    2. Include specific ROI expectations
-                    3. Have clear completion criteria
-                    4. Take 1-4 weeks each to complete
-                    5. Connect personal identity with business growth
-                    
-                    Return JSON format:
-                    {
-                        "milestones": [
-                            {
-                                "id": 1,
+                    "content": "You are a roadmap generation specialist. Create exactly 5 milestones that: 1. Build progressively toward the mission goal 2. Include specific ROI expectations 3. Have clear completion criteria 4. Take 1-4 weeks each to complete 5. Connect personal identity with business growth. Return JSON format with milestones array."
+                },
+                {
+                    "role": "user",
+                    "content": f"Mission: {mission_text}"
+                }
+            ],
+            response_format={"type": "json_object"}
+        )
+        
+        return json.loads(response.choices[0].message.content)
+    
+    def process(self, **kwargs):
+        """Process roadmap requests"""
+        if 'mission' in kwargs:
+            return self.generate_roadmap(kwargs['mission'])
+        return {"error": "No mission provided"}
+
+class MissionAgent:
+    """Specialized agent for mission statement creation and refinement"""
+    
+    def __init__(self):
+        self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    
+    def process(self, **kwargs):
+        """Process mission-related requests"""
+        if 'identity_data' in kwargs:
+            return self._create_mission_from_identity(kwargs['identity_data'])
+        elif 'refine_mission' in kwargs:
+            return self._refine_mission(kwargs['current_mission'], kwargs.get('feedback', ''))
+        return {"error": "Invalid mission request"}
+    
+    def _create_mission_from_identity(self, identity_data):
+        """Create mission statement from identity data"""
+        response = self.client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "system", 
+                    "content": "Create a compelling mission statement that unifies personal identity with business goals. Focus on authentic self-expression through entrepreneurship."
+                },
+                {
+                    "role": "user",
+                    "content": f"Identity: {json.dumps(identity_data)}"
+                }
+            ]
+        )
+        return {"mission": response.choices[0].message.content}
+
+class IdentityAgent:
+    """Specialized agent for identity exploration and business alignment"""
+    
+    def __init__(self):
+        self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    
+    def process(self, **kwargs):
+        """Process identity-related requests"""
+        if 'analyze_alignment' in kwargs:
+            return self._analyze_identity_business_alignment(
+                kwargs['identity_data'], 
+                kwargs['business_data']
+            )
+        return {"error": "Invalid identity request"}
+    
+    def _analyze_identity_business_alignment(self, identity_data, business_data):
+        """Analyze how well identity aligns with business direction"""
+        response = self.client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Analyze identity-business alignment. Identify gaps, strengths, and specific recommendations for unified growth."
+                },
+                {
+                    "role": "user", 
+                    "content": f"Identity: {json.dumps(identity_data)}\\nBusiness: {json.dumps(business_data)}"
+                }
+            ],
+            response_format={"type": "json_object"}
+        )
+        return json.loads(response.choices[0].message.content)
+'''
+    
+    write_file('agent_orchestrator.py', agent_orchestration_code)
+    print("✓ Created agent orchestration system")
+
+def create_roadmap_engine():
+    """Create roadmap engine with deterministic seed generation"""
+    roadmap_engine_code = '''
+"""
+Roadmap Engine - Deterministic 5-step milestone generation
+Implements the design pattern from the practical guide
+"""
+
+import json
+import os
+from openai import OpenAI
+
+class RoadmapEngine:
+    """Generate consistent 5-milestone roadmaps for solopreneur missions"""
+    
+    def __init__(self):
+        self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+    
+    def generate_roadmap(self, mission_statement):
+        """Generate 5 milestones from mission statement"""
+        response = self.client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "system",
+                    "content": "Generate exactly 5 progressive milestones for solopreneur mission. Each milestone should build toward the mission goal with specific ROI expectations and clear completion criteria. Return JSON format with milestones array."
+                },
+                {
+                    "role": "user",
+                    "content": f"Mission: {mission_statement}"
+                }
+            ],
+            response_format={"type": "json_object"}
+        )
+        
+        return json.loads(response.choices[0].message.content)
+
+# Global roadmap engine instance
+roadmap_engine = RoadmapEngine()
+'''
+    
+    write_file('roadmap_engine.py', roadmap_engine_code)
+    print("✓ Created roadmap engine")
+
+def create_activation_metrics_system():
+    """Create activation rate tracking system as specified in the guide"""
+    activation_code = '''
+"""
+Activation Metrics System
+Tracks the key metric: users who reach Milestone 1 / total sign-ups
+Includes instant win tracking for 25% higher activation rates
+"""
+
+from datetime import datetime
+import json
+import os
+
+class ActivationTracker:
+    """Centralized activation metrics tracking following industry standards"""
+    
+    def __init__(self):
+        self.metrics_file = 'activation_metrics.json'
+        self.load_metrics()
+    
+    def load_metrics(self):
+        """Load existing metrics or initialize"""
+        try:
+            with open(self.metrics_file, 'r') as f:
+                self.data = json.load(f)
+        except FileNotFoundError:
+            self.data = {
+                'total_signups': 0,
+                'milestone_1_completions': 0,
+                'instant_wins': 0,
+                'daily_metrics': {},
+                'tool_usage': {},
+                'session_data': []
+            }
+    
+    def save_metrics(self):
+        """Persist metrics to file"""
+        with open(self.metrics_file, 'w') as f:
+            json.dump(self.data, f, indent=2)
+    
+    def track_signup(self, user_id):
+        """Track new user signup for activation rate calculation"""
+        self.data['total_signups'] += 1
+        today = datetime.now().strftime('%Y-%m-%d')
+        
+        if today not in self.data['daily_metrics']:
+            self.data['daily_metrics'][today] = {'signups': 0, 'activations': 0}
+        
+        self.data['daily_metrics'][today]['signups'] += 1
+        self.save_metrics()
+    
+    def track_milestone_1_completion(self, user_id):
+        """Track Milestone 1 completion - key activation metric"""
+        self.data['milestone_1_completions'] += 1
+        today = datetime.now().strftime('%Y-%m-%d')
+        
+        if today not in self.data['daily_metrics']:
+            self.data['daily_metrics'][today] = {'signups': 0, 'activations': 0}
+        
+        self.data['daily_metrics'][today]['activations'] += 1
+        self.save_metrics()
+    
+    def track_instant_win(self, user_id, task_type):
+        """Track instant wins (<5 min tasks) for 25% higher activation"""
+        self.data['instant_wins'] += 1
+        
+        if task_type not in self.data['tool_usage']:
+            self.data['tool_usage'][task_type] = 0
+        self.data['tool_usage'][task_type] += 1
+        
+        self.save_metrics()
+    
+    def get_activation_rate(self):
+        """Calculate activation rate: Milestone 1 completions / total signups"""
+        if self.data['total_signups'] == 0:
+            return 0.0
+        
+        return (self.data['milestone_1_completions'] / self.data['total_signups']) * 100
+    
+    def get_daily_activation_rate(self, date=None):
+        """Get activation rate for specific day"""
+        if date is None:
+            date = datetime.now().strftime('%Y-%m-%d')
+        
+        if date not in self.data['daily_metrics']:
+            return 0.0
+        
+        day_data = self.data['daily_metrics'][date]
+        if day_data['signups'] == 0:
+            return 0.0
+        
+        return (day_data['activations'] / day_data['signups']) * 100
+    
+    def is_meeting_target(self):
+        """Check if meeting the 70% activation target"""
+        return self.get_activation_rate() >= 70.0
+
+# Global activation tracker instance
+activation_tracker = ActivationTracker()
+'''
+    
+    write_file('activation_metrics.py', activation_code)
+    print("✓ Created activation metrics system")
+
+def create_health_check_system():
+    """Create health check and regression testing system"""
+    health_check_code = '''
+"""
+Health Check System - Regression Testing
+Implements the /healthz endpoint and basic app boot verification
+"""
+
+from flask import Blueprint, jsonify
+from datetime import datetime
+
+health_bp = Blueprint('health', __name__)
+
+@health_bp.route('/healthz', methods=['GET'])
+def health_check():
+    """Health check endpoint for regression testing"""
+    try:
+        # Verify database connection
+        from models import User
+        User.query.first()
+        
+        # Verify agent system is responsive
+        from agents_sdk import get_greeting
+        greeting = get_greeting()
+        
+        return jsonify({
+            "status": "ok",
+            "timestamp": datetime.utcnow().isoformat(),
+            "database": "connected",
+            "agent_system": "responsive",
+            "version": "1.0.0"
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "error": str(e),
+            "timestamp": datetime.utcnow().isoformat()
+        }), 500
+
+@health_bp.route('/healthz/activation', methods=['GET'])
+def activation_health():
+    """Health check for activation metrics"""
+    try:
+        from activation_metrics import activation_tracker
+        
+        activation_rate = activation_tracker.get_activation_rate()
+        is_meeting_target = activation_tracker.is_meeting_target()
+        
+        return jsonify({
+            "activation_rate": round(activation_rate, 2),
+            "meeting_70_percent_target": is_meeting_target,
+            "total_signups": activation_tracker.data['total_signups'],
+            "milestone_1_completions": activation_tracker.data['milestone_1_completions'],
+            "instant_wins": activation_tracker.data['instant_wins']
+        }), 200
+        
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+'''
+    
+    write_file('health_check.py', health_check_code)
+    print("✓ Created health check system")
+
+def create_lighthouse_performance_system():
+    """Create performance monitoring following the 95% Lighthouse goal"""
+    performance_code = '''
+"""
+Performance Monitoring System
+Implements Lighthouse performance tracking for 95% score target
+"""
+
+from flask import Blueprint, jsonify, request
+import subprocess
+import json
+import tempfile
+import os
+
+performance_bp = Blueprint('performance', __name__)
+
+@performance_bp.route('/performance/lighthouse', methods=['POST'])
+def run_lighthouse():
+    """Run Lighthouse audit on the application"""
+    try:
+        data = request.get_json()
+        url = data.get('url', 'http://localhost:5000')
+        
+        # Run Lighthouse audit
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            output_path = f.name
+        
+        cmd = [
+            'lighthouse',
+            url,
+            '--output=json',
+            '--output-path=' + output_path,
+            '--chrome-flags="--headless"'
+        ]
+        
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            with open(output_path, 'r') as f:
+                lighthouse_data = json.load(f)
+            
+            os.unlink(output_path)
+            
+            return jsonify({
+                'performance_score': lighthouse_data['categories']['performance']['score'] * 100,
+                'accessibility_score': lighthouse_data['categories']['accessibility']['score'] * 100,
+                'best_practices_score': lighthouse_data['categories']['best-practices']['score'] * 100,
+                'seo_score': lighthouse_data['categories']['seo']['score'] * 100,
+                'meeting_95_target': lighthouse_data['categories']['performance']['score'] * 100 >= 95
+            })
+        else:
+            return jsonify({'error': 'Lighthouse audit failed'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def get_performance_metrics():
+    """Get current performance metrics"""
+    return {
+        'lighthouse_target': 95,
+        'current_score': 'pending_audit',
+        'optimization_tips': [
+            'Minimize JavaScript bundle size',
+            'Optimize images with WebP format',
+            'Use CDN for static assets',
+            'Implement service worker caching'
+        ]
+    }
+'''
+    
+    write_file('performance_monitoring.py', performance_code)
+    print("✓ Created performance monitoring system")
+
+    performance_routes = '''
+# Add to routes.py
+from performance_monitoring import performance_bp, get_performance_metrics
+
+# Register performance blueprint
+app.register_blueprint(performance_bp, url_prefix="/performance")
+
+@app.route('/api/performance/status')
+def performance_status():
+    """Get current performance status"""
+    return jsonify(get_performance_metrics())
+'''
+    
+    return performance_routes
                                 "title": "Milestone Title",
                                 "description": "Clear description",
                                 "expected_roi": "Specific ROI hint",

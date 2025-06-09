@@ -20,6 +20,9 @@ from activation_metrics import activation_tracker
 # Register Replit Auth blueprint
 app.register_blueprint(make_replit_blueprint(), url_prefix="/auth")
 
+# Register health check blueprint for regression testing
+app.register_blueprint(health_bp, url_prefix="/health")
+
 # === NEW API ROUTES FOR 3-VIEW UX ===
 
 # Make session permanent
