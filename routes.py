@@ -18,6 +18,306 @@ app.register_blueprint(make_replit_blueprint(), url_prefix="/auth")
 
 # === NEW API ROUTES FOR 3-VIEW UX ===
 
+# Add these routes to routes.py for agent state management
+
+@app.route('/api/agent-state', methods=['GET'])
+@login_required
+def get_agent_state():
+    """Get current agent state and completion data"""
+    user = current_user
+    
+    # Calculate completion percentages
+    identity_completion = calculate_identity_completion(user)
+    mission_completion = calculate_mission_completion(user)
+    roadmap_completion = calculate_roadmap_completion(user)
+    
+    total_completion = (identity_completion * 0.33) + (mission_completion * 0.33) + (roadmap_completion * 0.34)
+    
+    # Determine agent stage
+    stage = 'seed' if total_completion <= 25 else            'sprout' if total_completion <= 50 else            'bloom' if total_completion <= 80 else 'master'
+    
+    return jsonify({
+        'completion': {
+            'identity': identity_completion,
+            'mission': mission_completion,
+            'roadmap': roadmap_completion,
+            'total': total_completion
+        },
+        'stage': stage,
+        'message': get_agent_message(stage),
+        'mood': get_agent_mood(total_completion)
+    })
+
+def calculate_identity_completion(user):
+    """Calculate identity completion percentage"""
+    if not user.identity_data:
+        return 0
+    
+    identity = json.loads(user.identity_data)
+    fields = ['name', 'archetype', 'mood', 'region', 'field', 'selfTitle']
+    completed = sum(1 for field in fields if identity.get(field, '').strip())
+    return (completed / len(fields)) * 100
+
+def calculate_mission_completion(user):
+    """Calculate mission completion percentage"""
+    if not user.mission_statement:
+        return 0
+    
+    # Check for mission components
+    fields = ['mission_statement', 'current_goal']
+    completed = sum(1 for field in fields if getattr(user, field, '').strip())
+    return (completed / len(fields)) * 100
+
+def calculate_roadmap_completion(user):
+    """Calculate roadmap completion percentage"""
+    milestones = Milestone.query.filter_by(active=True).all()
+    if not milestones:
+        return 0
+    
+    completed_milestones = sum(1 for m in milestones if m.completed)
+    return (completed_milestones / len(milestones)) * 100
+
+def get_agent_message(stage):
+    """Get personality message based on stage"""
+    messages = {
+        'seed': [
+            "I'm just beginning to understand you! 🌱",
+            "Let's plant the seeds of your mission! 🌱",
+            "Tell me more about who you are! 🌱"
+        ],
+        'sprout': [
+            "I'm growing! Your mission is becoming clearer 🌿",
+            "Keep feeding me insights! 🌿",
+            "I can feel your purpose taking shape! 🌿"
+        ],
+        'bloom': [
+            "Look how far we've come! 🌸",
+            "Your mission is flourishing! 🌸",
+            "We're making beautiful progress! 🌸"
+        ],
+        'master': [
+            "We've achieved mastery together! 🌟",
+            "Ready for the next challenge? 🌟",
+            "Your entrepreneurial spirit shines bright! 🌟"
+        ]
+    }
+    
+    stage_messages = messages.get(stage, messages['seed'])
+    import random
+    return random.choice(stage_messages)
+
+def get_agent_mood(completion):
+    """Determine agent mood based on completion"""
+    if completion < 25:
+        return 'curious'
+    elif completion < 50:
+        return 'excited'
+    elif completion < 80:
+        return 'happy'
+    else:
+        return 'proud'
+
+
+# Add these routes to routes.py for agent state management
+
+@app.route('/api/agent-state', methods=['GET'])
+@login_required
+def get_agent_state():
+    """Get current agent state and completion data"""
+    user = current_user
+    
+    # Calculate completion percentages
+    identity_completion = calculate_identity_completion(user)
+    mission_completion = calculate_mission_completion(user)
+    roadmap_completion = calculate_roadmap_completion(user)
+    
+    total_completion = (identity_completion * 0.33) + (mission_completion * 0.33) + (roadmap_completion * 0.34)
+    
+    # Determine agent stage
+    stage = 'seed' if total_completion <= 25 else            'sprout' if total_completion <= 50 else            'bloom' if total_completion <= 80 else 'master'
+    
+    return jsonify({
+        'completion': {
+            'identity': identity_completion,
+            'mission': mission_completion,
+            'roadmap': roadmap_completion,
+            'total': total_completion
+        },
+        'stage': stage,
+        'message': get_agent_message(stage),
+        'mood': get_agent_mood(total_completion)
+    })
+
+def calculate_identity_completion(user):
+    """Calculate identity completion percentage"""
+    if not user.identity_data:
+        return 0
+    
+    identity = json.loads(user.identity_data)
+    fields = ['name', 'archetype', 'mood', 'region', 'field', 'selfTitle']
+    completed = sum(1 for field in fields if identity.get(field, '').strip())
+    return (completed / len(fields)) * 100
+
+def calculate_mission_completion(user):
+    """Calculate mission completion percentage"""
+    if not user.mission_statement:
+        return 0
+    
+    # Check for mission components
+    fields = ['mission_statement', 'current_goal']
+    completed = sum(1 for field in fields if getattr(user, field, '').strip())
+    return (completed / len(fields)) * 100
+
+def calculate_roadmap_completion(user):
+    """Calculate roadmap completion percentage"""
+    milestones = Milestone.query.filter_by(active=True).all()
+    if not milestones:
+        return 0
+    
+    completed_milestones = sum(1 for m in milestones if m.completed)
+    return (completed_milestones / len(milestones)) * 100
+
+def get_agent_message(stage):
+    """Get personality message based on stage"""
+    messages = {
+        'seed': [
+            "I'm just beginning to understand you! 🌱",
+            "Let's plant the seeds of your mission! 🌱",
+            "Tell me more about who you are! 🌱"
+        ],
+        'sprout': [
+            "I'm growing! Your mission is becoming clearer 🌿",
+            "Keep feeding me insights! 🌿",
+            "I can feel your purpose taking shape! 🌿"
+        ],
+        'bloom': [
+            "Look how far we've come! 🌸",
+            "Your mission is flourishing! 🌸",
+            "We're making beautiful progress! 🌸"
+        ],
+        'master': [
+            "We've achieved mastery together! 🌟",
+            "Ready for the next challenge? 🌟",
+            "Your entrepreneurial spirit shines bright! 🌟"
+        ]
+    }
+    
+    stage_messages = messages.get(stage, messages['seed'])
+    import random
+    return random.choice(stage_messages)
+
+def get_agent_mood(completion):
+    """Determine agent mood based on completion"""
+    if completion < 25:
+        return 'curious'
+    elif completion < 50:
+        return 'excited'
+    elif completion < 80:
+        return 'happy'
+    else:
+        return 'proud'
+
+
+# Add these routes to routes.py for agent state management
+
+@app.route('/api/agent-state', methods=['GET'])
+@login_required
+def get_agent_state():
+    """Get current agent state and completion data"""
+    user = current_user
+    
+    # Calculate completion percentages
+    identity_completion = calculate_identity_completion(user)
+    mission_completion = calculate_mission_completion(user)
+    roadmap_completion = calculate_roadmap_completion(user)
+    
+    total_completion = (identity_completion * 0.33) + (mission_completion * 0.33) + (roadmap_completion * 0.34)
+    
+    # Determine agent stage
+    stage = 'seed' if total_completion <= 25 else            'sprout' if total_completion <= 50 else            'bloom' if total_completion <= 80 else 'master'
+    
+    return jsonify({
+        'completion': {
+            'identity': identity_completion,
+            'mission': mission_completion,
+            'roadmap': roadmap_completion,
+            'total': total_completion
+        },
+        'stage': stage,
+        'message': get_agent_message(stage),
+        'mood': get_agent_mood(total_completion)
+    })
+
+def calculate_identity_completion(user):
+    """Calculate identity completion percentage"""
+    if not user.identity_data:
+        return 0
+    
+    identity = json.loads(user.identity_data)
+    fields = ['name', 'archetype', 'mood', 'region', 'field', 'selfTitle']
+    completed = sum(1 for field in fields if identity.get(field, '').strip())
+    return (completed / len(fields)) * 100
+
+def calculate_mission_completion(user):
+    """Calculate mission completion percentage"""
+    if not user.mission_statement:
+        return 0
+    
+    # Check for mission components
+    fields = ['mission_statement', 'current_goal']
+    completed = sum(1 for field in fields if getattr(user, field, '').strip())
+    return (completed / len(fields)) * 100
+
+def calculate_roadmap_completion(user):
+    """Calculate roadmap completion percentage"""
+    milestones = Milestone.query.filter_by(active=True).all()
+    if not milestones:
+        return 0
+    
+    completed_milestones = sum(1 for m in milestones if m.completed)
+    return (completed_milestones / len(milestones)) * 100
+
+def get_agent_message(stage):
+    """Get personality message based on stage"""
+    messages = {
+        'seed': [
+            "I'm just beginning to understand you! 🌱",
+            "Let's plant the seeds of your mission! 🌱",
+            "Tell me more about who you are! 🌱"
+        ],
+        'sprout': [
+            "I'm growing! Your mission is becoming clearer 🌿",
+            "Keep feeding me insights! 🌿",
+            "I can feel your purpose taking shape! 🌿"
+        ],
+        'bloom': [
+            "Look how far we've come! 🌸",
+            "Your mission is flourishing! 🌸",
+            "We're making beautiful progress! 🌸"
+        ],
+        'master': [
+            "We've achieved mastery together! 🌟",
+            "Ready for the next challenge? 🌟",
+            "Your entrepreneurial spirit shines bright! 🌟"
+        ]
+    }
+    
+    stage_messages = messages.get(stage, messages['seed'])
+    import random
+    return random.choice(stage_messages)
+
+def get_agent_mood(completion):
+    """Determine agent mood based on completion"""
+    if completion < 25:
+        return 'curious'
+    elif completion < 50:
+        return 'excited'
+    elif completion < 80:
+        return 'happy'
+    else:
+        return 'proud'
+
+
 @app.route('/api/identity', methods=['GET', 'POST'])
 @login_required
 def api_identity():

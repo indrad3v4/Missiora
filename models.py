@@ -107,3 +107,18 @@ class Milestone(db.Model):
     
     def __repr__(self):
         return f'<Milestone {self.code}>'
+
+# Add these fields to User model for agent state tracking
+    agent_stage = db.Column(db.String(20), default='seed')
+    completion_data = db.Column(db.Text, nullable=True)  # JSON stored completion data
+    last_agent_interaction = db.Column(db.DateTime, default=datetime.utcnow)
+
+# Add these fields to User model for agent state tracking
+    agent_stage = db.Column(db.String(20), default='seed')
+    completion_data = db.Column(db.Text, nullable=True)  # JSON stored completion data
+    last_agent_interaction = db.Column(db.DateTime, default=datetime.utcnow)
+
+# Add these fields to User model for agent state tracking
+    agent_stage = db.Column(db.String(20), default='seed')
+    completion_data = db.Column(db.Text, nullable=True)  # JSON stored completion data
+    last_agent_interaction = db.Column(db.DateTime, default=datetime.utcnow)
