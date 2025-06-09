@@ -1,13 +1,15 @@
 /**
- * Enhanced Vue Components for Mixed Reality Tamagotchi Experience
+ * Enhanced Vue Components with CLIP Vision Integration
+ * Mixed Reality Tamagotchi Experience with See→Think→Act capabilities
  */
 
 import { TamagotchiAgent } from './tamagotchi-agent.js';
 import { CameraIntegration } from './camera-integration.js';
+import { AROverlay } from './ar-overlay.js';
 
-// Enhanced Header with MR styling
+// Enhanced Header with Vision Status
 const HeaderView = {
-    props: ['userData', 'agentCompletion'],
+    props: ['userData', 'agentCompletion', 'visionStatus'],
     template: `
         <header class="mr-header">
             <div class="header-content">
@@ -28,6 +30,10 @@ const HeaderView = {
                     <div class="completion-ring" :style="completionRingStyle">
                         <span class="completion-text">{{ Math.round(agentCompletion) }}%</span>
                     </div>
+                    <div class="vision-indicator" :class="{ active: visionStatus.active }">
+                        <span class="vision-icon">👁️</span>
+                        <span class="vision-status">{{ visionStatus.active ? 'Seeing' : 'Offline' }}</span>
+                    </div>
                 </div>
             </div>
         </header>
@@ -47,7 +53,7 @@ const HeaderView = {
     }
 };
 
-// Enhanced Identity View with Agent Interaction
+// Enhanced Identity View with Vision Guidance
 const IdentityView = {
     emits: ['save', 'update-header', 'completion-change'],
     data() {
@@ -60,7 +66,8 @@ const IdentityView = {
                 field: '',
                 selfTitle: ''
             },
-            completionPercentage: 0
+            completionPercentage: 0,
+            visionGuidance: ''
         };
     },
     template: `
@@ -69,6 +76,9 @@ const IdentityView = {
                 <div class="section-header">
                     <h2>🧬 Define Your Identity</h2>
                     <p>Help your AI companion understand who you are</p>
+                    <div v-if="visionGuidance" class="vision-guidance">
+                        {{ visionGuidance }}
+                    </div>
                 </div>
                 
                 <form @submit.prevent="saveIdentity" class="mr-form">
@@ -151,8 +161,21 @@ const IdentityView = {
     `,
     async mounted() {
         await this.loadIdentity();
+        this.setupVisionGuidance();
     },
     methods: {
+        setupVisionGuidance() {
+            window.addEventListener('vision:objects-detected', (event) => {
+                const objects = event.detail.objects || [];
+                if (objects.length > 0) {
+                    this.visionGuidance = `I see ${objects[0].label}! This might inspire your identity.`;
+                    setTimeout(() => {
+                        this.visionGuidance = '';
+                    }, 5000);
+                }
+            });
+        },
+        
         async loadIdentity() {
             try {
                 const response = await fetch('/api/identity');
@@ -196,7 +219,7 @@ const IdentityView = {
     }
 };
 
-// Enhanced Mission View with Agent Guidance
+// Enhanced Mission View with Vision Integration
 const MissionView = {
     emits: ['save', 'update-header', 'completion-change'],
     data() {
@@ -207,7 +230,8 @@ const MissionView = {
                 timeline: '',
                 emotionalBlocks: ''
             },
-            completionPercentage: 0
+            completionPercentage: 0,
+            visionInsights: []
         };
     },
     template: `
@@ -216,6 +240,13 @@ const MissionView = {
                 <div class="section-header">
                     <h2>🎯 Craft Your Mission</h2>
                     <p>Define your purpose and goals clearly</p>
+                </div>
+                
+                <div v-if="visionInsights.length > 0" class="vision-insights">
+                    <h3>Vision Insights</h3>
+                    <div v-for="insight in visionInsights" :key="insight.id" class="insight-item">
+                        {{ insight.message }}
+                    </div>
                 </div>
                 
                 <form @submit.prevent="saveMission" class="mr-form">
@@ -278,8 +309,57 @@ const MissionView = {
     `,
     async mounted() {
         await this.loadMission();
+        this.setupVisionInsights();
     },
     methods: {
+        setupVisionInsights() {
+            window.addEventListener('vision:objects-detected', (event) => {
+                const objects = event.detail.objects || [];
+                objects.forEach(object => {
+                    if (this.isRelevantToMission(object.label)) {
+                        this.addVisionInsight(object);
+                    }
+                });
+            });
+        },
+        
+        isRelevantToMission(label) {
+            const relevantObjects = ['laptop', 'computer', 'book', 'paper', 'whiteboard', 'person'];
+            return relevantObjects.some(obj => label.toLowerCase().includes(obj));
+        },
+        
+        addVisionInsight(object) {
+            const insight = {
+                id: Date.now(),
+                message: this.getInsightMessage(object.label),
+                timestamp: new Date()
+            };
+            
+            this.visionInsights.unshift(insight);
+            
+            // Keep only last 3 insights
+            if (this.visionInsights.length > 3) {
+                this.visionInsights = this.visionInsights.slice(0, 3);
+            }
+            
+            // Auto-remove after 30 seconds
+            setTimeout(() => {
+                this.visionInsights = this.visionInsights.filter(i => i.id !== insight.id);
+            }, 30000);
+        },
+        
+        getInsightMessage(label) {
+            const messages = {
+                laptop: "I see your workspace! Your mission should reflect how you create value digitally.",
+                book: "Knowledge is power! What you're learning can shape your mission statement.",
+                whiteboard: "I see planning in progress! Let me help you clarify your mission.",
+                person: "People are central to every mission. How do you serve others?"
+            };
+            
+            const key = Object.keys(messages).find(k => label.toLowerCase().includes(k));
+            return messages[key] || "This environment element could inspire your mission!";
+        },
+        
         async loadMission() {
             try {
                 const response = await fetch('/api/mission');
@@ -323,13 +403,14 @@ const MissionView = {
     }
 };
 
-// Enhanced Roadmap View with Milestone Progression
+// Enhanced Roadmap View with Smart Milestone Generation
 const RoadmapView = {
     emits: ['completion-change'],
     data() {
         return {
             milestones: [],
-            completionPercentage: 0
+            completionPercentage: 0,
+            smartSuggestions: []
         };
     },
     template: `
@@ -338,6 +419,14 @@ const RoadmapView = {
                 <div class="section-header">
                     <h2>🗺️ Your Smart Roadmap</h2>
                     <p>AI-generated milestones based on your identity and mission</p>
+                </div>
+                
+                <div v-if="smartSuggestions.length > 0" class="smart-suggestions">
+                    <h3>Vision-Based Suggestions</h3>
+                    <div v-for="suggestion in smartSuggestions" :key="suggestion.id" class="suggestion-item">
+                        <span class="suggestion-text">{{ suggestion.text }}</span>
+                        <button @click="addSuggestionToRoadmap(suggestion)" class="add-button">Add</button>
+                    </div>
                 </div>
                 
                 <div class="milestones-container">
@@ -376,8 +465,78 @@ const RoadmapView = {
     `,
     async mounted() {
         await this.loadMilestones();
+        this.setupVisionSuggestions();
     },
     methods: {
+        setupVisionSuggestions() {
+            window.addEventListener('vision:objects-detected', (event) => {
+                const objects = event.detail.objects || [];
+                objects.forEach(object => {
+                    const suggestion = this.generateSmartSuggestion(object);
+                    if (suggestion) {
+                        this.addSmartSuggestion(suggestion);
+                    }
+                });
+            });
+        },
+        
+        generateSmartSuggestion(object) {
+            const label = object.label.toLowerCase();
+            const suggestions = {
+                'business card': 'Follow up with new contact within 48 hours',
+                'laptop': 'Optimize your digital workspace for productivity',
+                'whiteboard': 'Document and implement the ideas from this session',
+                'book': 'Schedule learning time based on this knowledge',
+                'person': 'Plan networking follow-up or collaboration opportunity'
+            };
+            
+            const key = Object.keys(suggestions).find(k => label.includes(k));
+            return key ? {
+                id: Date.now() + Math.random(),
+                text: suggestions[key],
+                source: object.label,
+                confidence: object.confidence
+            } : null;
+        },
+        
+        addSmartSuggestion(suggestion) {
+            // Check if similar suggestion already exists
+            const exists = this.smartSuggestions.some(s => s.text === suggestion.text);
+            if (!exists) {
+                this.smartSuggestions.unshift(suggestion);
+                
+                // Keep only last 5 suggestions
+                if (this.smartSuggestions.length > 5) {
+                    this.smartSuggestions = this.smartSuggestions.slice(0, 5);
+                }
+                
+                // Auto-remove after 60 seconds
+                setTimeout(() => {
+                    this.smartSuggestions = this.smartSuggestions.filter(s => s.id !== suggestion.id);
+                }, 60000);
+            }
+        },
+        
+        async addSuggestionToRoadmap(suggestion) {
+            try {
+                const response = await fetch('/api/milestones/from-suggestion', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        suggestion: suggestion.text,
+                        source: suggestion.source
+                    })
+                });
+                
+                if (response.ok) {
+                    await this.loadMilestones();
+                    this.smartSuggestions = this.smartSuggestions.filter(s => s.id !== suggestion.id);
+                }
+            } catch (error) {
+                console.error('Failed to add suggestion to roadmap:', error);
+            }
+        },
+        
         async loadMilestones() {
             try {
                 const response = await fetch('/api/milestones');
@@ -418,7 +577,7 @@ const RoadmapView = {
     }
 };
 
-// Main MR Application
+// Main MR Application with Full CLIP Integration
 const MainApp = {
     components: {
         HeaderView,
@@ -441,8 +600,14 @@ const MainApp = {
                 mission: 0,
                 roadmap: 0
             },
+            visionStatus: {
+                active: false,
+                analyzing: false,
+                lastDetection: null
+            },
             agent: null,
             camera: null,
+            arOverlay: null,
             agentMessage: '',
             showAgentBubble: false
         };
@@ -462,6 +627,7 @@ const MainApp = {
             <HeaderView 
                 :user-data="userData" 
                 :agent-completion="totalCompletion"
+                :vision-status="visionStatus"
             />
             
             <!-- Main Content -->
@@ -528,7 +694,6 @@ const MainApp = {
         },
         
         agentBubblePosition() {
-            // Position bubble based on active tab
             return {
                 'position-top': this.activeTab === 'identity',
                 'position-center': this.activeTab === 'mission',
@@ -539,9 +704,10 @@ const MainApp = {
     async mounted() {
         this.initializeCamera();
         this.initializeAgent();
+        this.initializeAROverlay();
         this.showAgentWelcome();
+        this.setupVisionEventListeners();
         
-        // Listen for window resize
         window.addEventListener('resize', this.handleResize);
     },
     beforeUnmount() {
@@ -550,6 +716,9 @@ const MainApp = {
         }
         if (this.camera) {
             this.camera.destroy();
+        }
+        if (this.arOverlay) {
+            this.arOverlay.destroy();
         }
         window.removeEventListener('resize', this.handleResize);
     },
@@ -561,6 +730,59 @@ const MainApp = {
         initializeAgent() {
             this.agent = new TamagotchiAgent(this.$refs.agentCanvas);
             this.updateAgentCompletion();
+        },
+        
+        initializeAROverlay() {
+            this.arOverlay = new AROverlay();
+            this.arOverlay.onActionSelected = this.handleActionSelected;
+        },
+        
+        setupVisionEventListeners() {
+            window.addEventListener('camera:ready', () => {
+                this.visionStatus.active = true;
+            });
+            
+            window.addEventListener('camera:stopped', () => {
+                this.visionStatus.active = false;
+            });
+            
+            window.addEventListener('vision:objects-detected', (event) => {
+                this.visionStatus.lastDetection = new Date();
+                this.visionStatus.analyzing = true;
+                
+                setTimeout(() => {
+                    this.visionStatus.analyzing = false;
+                }, 1000);
+                
+                // Update agent message based on detected objects
+                const objects = event.detail.objects || [];
+                if (objects.length > 0 && this.agent) {
+                    const message = this.agent.getObjectReactionMessage(objects[0].label);
+                    this.showAgentMessage(message);
+                }
+            });
+        },
+        
+        handleActionSelected(action, object) {
+            // Show agent reaction to action
+            const reactionMessages = {
+                'scan_card': "Great! I'll help you process this business card.",
+                'scan_qr': "Let me decode that QR code for you!",
+                'ocr_text': "I'll extract the text from what you're showing me.",
+                'networking_tips': "Here are some networking insights based on what I see!"
+            };
+            
+            const message = reactionMessages[action.id] || "I'll help you with that!";
+            this.showAgentMessage(message);
+        },
+        
+        showAgentMessage(message) {
+            this.agentMessage = message;
+            this.showAgentBubble = true;
+            
+            setTimeout(() => {
+                this.showAgentBubble = false;
+            }, 5000);
         },
         
         updateCompletion(type, percentage) {
@@ -584,7 +806,6 @@ const MainApp = {
                 this.agentMessage = this.agent.getPersonalityMessage();
                 this.showAgentBubble = true;
                 
-                // Hide bubble after 5 seconds
                 setTimeout(() => {
                     this.showAgentBubble = false;
                 }, 5000);
@@ -601,18 +822,16 @@ const MainApp = {
         },
         
         switchTab(tab) {
-            // Check if tab is unlocked
             if (tab === 'mission' && this.completionData.identity < 80) return;
             if (tab === 'roadmap' && this.completionData.mission < 75) return;
             
             this.activeTab = tab;
             this.updateAgentMessage();
             
-            // Trigger agent mood change based on tab
             if (this.agent) {
                 const mood = tab === 'identity' ? 'curious' :
                             tab === 'mission' ? 'excited' : 'thinking';
-                this.agent.playMoodAnimation(mood);
+                this.agent.playEmotionalReaction(mood);
             }
         },
         

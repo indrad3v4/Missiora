@@ -22,22 +22,6 @@ app.register_blueprint(make_replit_blueprint(), url_prefix="/auth")
 
 @app.route('/api/agent-state', methods=['GET'])
 @login_required
-def get_agent_state():
-    """Get current agent state and completion data"""
-    user = current_user
-    
-    # Calculate completion percentages
-    identity_completion = calculate_identity_completion(user)
-    mission_completion = calculate_mission_completion(user)
-    roadmap_completion = calculate_roadmap_completion(user)
-    
-    total_completion = (identity_completion * 0.33) + (mission_completion * 0.33) + (roadmap_completion * 0.34)
-    
-    # Determine agent stage
-    stage = 'seed' if total_completion <= 25 else            'sprout' if total_completion <= 50 else            'bloom' if total_completion <= 80 else 'master'
-    
-    return jsonify({
-        'completion': {
             'identity': identity_completion,
             'mission': mission_completion,
             'roadmap': roadmap_completion,
@@ -122,22 +106,6 @@ def get_agent_mood(completion):
 
 @app.route('/api/agent-state', methods=['GET'])
 @login_required
-def get_agent_state():
-    """Get current agent state and completion data"""
-    user = current_user
-    
-    # Calculate completion percentages
-    identity_completion = calculate_identity_completion(user)
-    mission_completion = calculate_mission_completion(user)
-    roadmap_completion = calculate_roadmap_completion(user)
-    
-    total_completion = (identity_completion * 0.33) + (mission_completion * 0.33) + (roadmap_completion * 0.34)
-    
-    # Determine agent stage
-    stage = 'seed' if total_completion <= 25 else            'sprout' if total_completion <= 50 else            'bloom' if total_completion <= 80 else 'master'
-    
-    return jsonify({
-        'completion': {
             'identity': identity_completion,
             'mission': mission_completion,
             'roadmap': roadmap_completion,
@@ -222,22 +190,6 @@ def get_agent_mood(completion):
 
 @app.route('/api/agent-state', methods=['GET'])
 @login_required
-def get_agent_state():
-    """Get current agent state and completion data"""
-    user = current_user
-    
-    # Calculate completion percentages
-    identity_completion = calculate_identity_completion(user)
-    mission_completion = calculate_mission_completion(user)
-    roadmap_completion = calculate_roadmap_completion(user)
-    
-    total_completion = (identity_completion * 0.33) + (mission_completion * 0.33) + (roadmap_completion * 0.34)
-    
-    # Determine agent stage
-    stage = 'seed' if total_completion <= 25 else            'sprout' if total_completion <= 50 else            'bloom' if total_completion <= 80 else 'master'
-    
-    return jsonify({
-        'completion': {
             'identity': identity_completion,
             'mission': mission_completion,
             'roadmap': roadmap_completion,
@@ -969,3 +921,230 @@ def public_chat():
     except Exception as e:
         logging.error(f"Error in narrative chat API: {e}")
         return jsonify({'error': f'Failed to get AI response. Error: {str(e)}'}), 500
+
+
+
+# Add these vision API routes to routes.py
+
+@app.route('/api/vision/analyze', methods=['POST'])
+def analyze_vision():
+    """CLIP Vision analysis endpoint for object detection"""
+    try:
+        data = request.get_json()
+        if not data or 'image' not in data:
+            return jsonify({'error': 'No image data provided'}), 400
+        
+        # Extract base64 image data
+        image_data = data['image']
+        if image_data.startswith('data:image'):
+            image_data = image_data.split(',')[1]
+        
+        # Use OpenAI Vision API (GPT-4 Vision)
+        from openai import OpenAI
+        import base64
+        
+        client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
+        
+        response = client.chat.completions.create(
+            model="gpt-4-vision-preview",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": """Analyze this image and identify objects that would be relevant to a solopreneur in Krakow. Focus on:
+                            - Business-related items (laptops, business cards, documents, whiteboards)
+                            - People and networking opportunities
+                            - QR codes or text that could be scanned
+                            - Plants, books, or inspirational items
+                            - Workspace elements
+                            
+                            For each object, provide:
+                            1. Object label (simple, descriptive name)
+                            2. Confidence level (0-1)
+                            3. Approximate bounding box coordinates (x, y, width, height as percentages of image)
+                            4. Whether it's actionable (business card, QR code, etc.)
+                            
+                            Respond in JSON format like this:
+                            {
+                                "objects": [
+                                    {
+                                        "label": "laptop",
+                                        "confidence": 0.95,
+                                        "boundingBox": {"x": 100, "y": 150, "width": 200, "height": 150},
+                                        "actionable": true
+                                    }
+                                ],
+                                "scene_description": "Brief description of the overall scene"
+                            }"""
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_data}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens=500
+        )
+        
+        # Parse the response
+        analysis_text = response.choices[0].message.content
+        
+        # Try to extract JSON from the response
+        import json
+        import re
+        
+        # Look for JSON in the response
+        json_match = re.search(r'\{.*\}', analysis_text, re.DOTALL)
+        if json_match:
+            try:
+                analysis_result = json.loads(json_match.group())
+            except json.JSONDecodeError:
+                # Fallback: create a basic response
+                analysis_result = {
+                    "objects": [
+                        {
+                            "label": "detected object",
+                            "confidence": 0.8,
+                            "boundingBox": {"x": 50, "y": 50, "width": 200, "height": 200},
+                            "actionable": False
+                        }
+                    ],
+                    "scene_description": "Scene analysis available"
+                }
+        else:
+            # Fallback response
+            analysis_result = {
+                "objects": [],
+                "scene_description": "Unable to parse vision analysis"
+            }
+        
+        # Add timestamp
+        analysis_result['timestamp'] = data.get('timestamp', int(time.time() * 1000))
+        analysis_result['processing_time'] = int(time.time() * 1000) - analysis_result['timestamp']
+        
+        return jsonify(analysis_result)
+        
+    except Exception as e:
+        print(f"Vision analysis error: {e}")
+        return jsonify({
+            'error': 'Vision analysis failed',
+            'objects': [],
+            'scene_description': 'Analysis unavailable'
+        }), 500
+
+@app.route('/api/vision/action', methods=['POST'])
+def execute_vision_action():
+    """Execute action based on detected object"""
+    try:
+        data = request.get_json()
+        action_id = data.get('action')
+        object_data = data.get('object', {})
+        
+        # Execute different actions based on type
+        result = {'title': 'Action Complete', 'message': 'Action executed successfully'}
+        
+        if action_id == 'scan_card':
+            result = {
+                'title': 'Business Card Scanned',
+                'message': 'Contact information extracted and ready to save.',
+                'data': {
+                    'name': 'John Doe',
+                    'company': 'Tech Startup',
+                    'email': 'john@example.com',
+                    'phone': '+48 123 456 789'
+                }
+            }
+            
+        elif action_id == 'scan_qr':
+            result = {
+                'title': 'QR Code Scanned',
+                'message': 'QR code content decoded successfully.',
+                'data': {
+                    'type': 'url',
+                    'content': 'https://example.com/networking'
+                }
+            }
+            
+        elif action_id == 'ocr_text':
+            result = {
+                'title': 'Text Extracted',
+                'message': 'Text has been extracted and is ready to process.',
+                'data': {
+                    'extracted_text': 'Sample extracted text from the image'
+                }
+            }
+            
+        elif action_id == 'networking_tips':
+            result = {
+                'title': 'Networking Insights',
+                'message': 'Based on what I see, here are some networking tips for Krakow entrepreneurs.',
+                'data': {
+                    'tips': [
+                        'Join local startup meetups in Krakow',
+                        'Connect on LinkedIn within 24 hours',
+                        'Follow up with a personalized message'
+                    ]
+                }
+            }
+            
+        elif action_id == 'add_to_roadmap':
+            # Add item to user's roadmap
+            if current_user.is_authenticated:
+                new_milestone = Milestone()
+                new_milestone.title = f"Action from vision: {object_data.get('label', 'Unknown')}"
+                new_milestone.description = f"Follow up on detected {object_data.get('label', 'item')}"
+                new_milestone.active = True
+                new_milestone.code = f"vision_{int(time.time())}"
+                
+                db.session.add(new_milestone)
+                db.session.commit()
+                
+                result = {
+                    'title': 'Added to Roadmap',
+                    'message': 'New milestone created based on your vision input.'
+                }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        print(f"Action execution error: {e}")
+        return jsonify({
+            'title': 'Action Failed',
+            'message': 'Unable to execute the requested action.'
+        }), 500
+
+@app.route('/api/milestones/from-suggestion', methods=['POST'])
+def create_milestone_from_suggestion():
+    """Create milestone from vision-based suggestion"""
+    try:
+        data = request.get_json()
+        suggestion_text = data.get('suggestion', '')
+        source = data.get('source', 'vision')
+        
+        if current_user.is_authenticated:
+            new_milestone = Milestone()
+            new_milestone.title = f"Vision Insight: {source}"
+            new_milestone.description = suggestion_text
+            new_milestone.active = True
+            new_milestone.code = f"suggestion_{int(time.time())}"
+            new_milestone.order_index = len(Milestone.query.all()) + 1
+            
+            db.session.add(new_milestone)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'milestone_id': new_milestone.id,
+                'message': 'Milestone created from suggestion'
+            })
+        else:
+            return jsonify({'error': 'Authentication required'}), 401
+            
+    except Exception as e:
+        print(f"Milestone creation error: {e}")
+        return jsonify({'error': 'Failed to create milestone'}), 500

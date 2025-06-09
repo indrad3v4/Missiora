@@ -1,6 +1,6 @@
 /**
- * WebGL Tamagotchi Agent Renderer
- * Renders evolving AI companion with Three.js
+ * Enhanced WebGL Tamagotchi Agent with CLIP Vision Integration
+ * Renders evolving AI companion with eye tracking and emotional reactions
  */
 
 import * as THREE from 'https://unpkg.com/three@0.157.0/build/three.module.js';
@@ -13,14 +13,17 @@ export class TamagotchiAgent {
         this.mood = 'neutral';
         this.size = 1.0;
         this.color = '#22d3ee';
+        this.detectedObjects = [];
+        this.eyeTarget = new THREE.Vector3(0, 0, 0);
+        this.currentEmotion = 'curious';
         
         this.initThreeJS();
         this.createAgent();
+        this.setupEventListeners();
         this.animate();
     }
     
     initThreeJS() {
-        // Scene setup
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.renderer = new THREE.WebGLRenderer({ 
@@ -32,7 +35,6 @@ export class TamagotchiAgent {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setClearColor(0x000000, 0);
         
-        // Lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         this.scene.add(ambientLight);
         
@@ -44,7 +46,6 @@ export class TamagotchiAgent {
     }
     
     createAgent() {
-        // Agent geometry based on stage
         const stageConfig = this.getStageConfig();
         
         // Core body
@@ -59,8 +60,8 @@ export class TamagotchiAgent {
         
         this.agentBody = new THREE.Mesh(bodyGeometry, bodyMaterial);
         
-        // Eyes
-        this.createEyes();
+        // Enhanced eyes with tracking capability
+        this.createEnhancedEyes();
         
         // Growth elements based on stage
         this.createGrowthElements();
@@ -70,26 +71,50 @@ export class TamagotchiAgent {
         this.agentGroup.add(this.agentBody);
         this.scene.add(this.agentGroup);
         
-        // Position in space
         this.updateSpatialPosition();
     }
     
-    createEyes() {
-        const eyeGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+    createEnhancedEyes() {
+        // Eye sockets
+        const socketGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+        const socketMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        
+        this.leftSocket = new THREE.Mesh(socketGeometry, socketMaterial);
+        this.rightSocket = new THREE.Mesh(socketGeometry, socketMaterial);
+        
+        this.leftSocket.position.set(-0.25, 0.25, 0.7);
+        this.rightSocket.position.set(0.25, 0.25, 0.7);
+        
+        // Eyeballs that can move
+        const eyeGeometry = new THREE.SphereGeometry(0.12, 16, 16);
         const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
         
         this.leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
         this.rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
         
-        this.leftEye.position.set(-0.2, 0.2, 0.8);
-        this.rightEye.position.set(0.2, 0.2, 0.8);
+        this.leftEye.position.copy(this.leftSocket.position);
+        this.rightEye.position.copy(this.rightSocket.position);
         
+        // Pupils
+        const pupilGeometry = new THREE.SphereGeometry(0.06, 16, 16);
+        const pupilMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        
+        this.leftPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+        this.rightPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+        
+        this.leftPupil.position.set(0, 0, 0.1);
+        this.rightPupil.position.set(0, 0, 0.1);
+        
+        this.leftEye.add(this.leftPupil);
+        this.rightEye.add(this.rightPupil);
+        
+        this.agentGroup.add(this.leftSocket);
+        this.agentGroup.add(this.rightSocket);
         this.agentGroup.add(this.leftEye);
         this.agentGroup.add(this.rightEye);
     }
     
     createGrowthElements() {
-        // Remove existing growth elements
         if (this.growthElements) {
             this.growthElements.forEach(element => {
                 this.agentGroup.remove(element);
@@ -100,19 +125,15 @@ export class TamagotchiAgent {
         
         switch(this.stage) {
             case 'seed':
-                // Simple core form
                 break;
             case 'sprout':
-                // Add small tendrils
                 this.addTendrils(3);
                 break;
             case 'bloom':
-                // Add larger tendrils and particles
                 this.addTendrils(6);
                 this.addParticleHalo();
                 break;
             case 'master':
-                // Full crown and energy field
                 this.addTendrils(12);
                 this.addParticleHalo();
                 this.addEnergyCrown();
@@ -185,6 +206,123 @@ export class TamagotchiAgent {
         this.agentGroup.add(crown);
     }
     
+    setupEventListeners() {
+        // Listen for object detection events
+        window.addEventListener('vision:objects-detected', (event) => {
+            this.handleObjectDetection(event.detail);
+        });
+    }
+    
+    handleObjectDetection(detectionData) {
+        this.detectedObjects = detectionData.objects || [];
+        
+        if (this.detectedObjects.length > 0) {
+            const primaryObject = this.detectedObjects[0];
+            this.reactToObject(primaryObject);
+            this.trackObject(primaryObject);
+        }
+    }
+    
+    reactToObject(object) {
+        const objectType = object.label.toLowerCase();
+        let emotion = 'curious';
+        let intensity = 1.0;
+        
+        // Emotional reactions to different objects
+        if (objectType.includes('laptop') || objectType.includes('computer')) {
+            emotion = 'excited';
+            intensity = 1.5;
+        } else if (objectType.includes('plant') || objectType.includes('flower')) {
+            emotion = 'curious';
+            intensity = 1.2;
+        } else if (objectType.includes('person') || objectType.includes('face')) {
+            emotion = 'happy';
+            intensity = 1.3;
+        } else if (objectType.includes('book') || objectType.includes('paper')) {
+            emotion = 'thinking';
+            intensity = 1.1;
+        } else if (objectType.includes('phone') || objectType.includes('card')) {
+            emotion = 'interested';
+            intensity = 1.4;
+        }
+        
+        this.playEmotionalReaction(emotion, intensity);
+    }
+    
+    trackObject(object) {
+        if (object.boundingBox) {
+            // Convert bounding box center to 3D space
+            const centerX = (object.boundingBox.x + object.boundingBox.width / 2) / window.innerWidth;
+            const centerY = (object.boundingBox.y + object.boundingBox.height / 2) / window.innerHeight;
+            
+            // Map to 3D coordinates
+            this.eyeTarget.set(
+                (centerX - 0.5) * 4,
+                -(centerY - 0.5) * 4,
+                2
+            );
+        }
+    }
+    
+    updateEyeTracking() {
+        if (this.leftEye && this.rightEye) {
+            // Smooth eye movement toward target
+            const lookDirection = this.eyeTarget.clone().normalize();
+            const eyeMovement = lookDirection.multiplyScalar(0.05);
+            
+            // Limit eye movement within sockets
+            eyeMovement.x = Math.max(-0.08, Math.min(0.08, eyeMovement.x));
+            eyeMovement.y = Math.max(-0.08, Math.min(0.08, eyeMovement.y));
+            
+            this.leftEye.position.lerp(
+                this.leftSocket.position.clone().add(eyeMovement),
+                0.1
+            );
+            this.rightEye.position.lerp(
+                this.rightSocket.position.clone().add(eyeMovement),
+                0.1
+            );
+        }
+    }
+    
+    playEmotionalReaction(emotion, intensity = 1.0) {
+        this.currentEmotion = emotion;
+        
+        switch(emotion) {
+            case 'excited':
+                this.agentBody.material.emissiveIntensity = 0.5 * intensity;
+                this.leftEye.scale.set(1.3, 0.7, 1);
+                this.rightEye.scale.set(1.3, 0.7, 1);
+                break;
+            case 'happy':
+                this.leftEye.scale.set(1.2, 0.8, 1);
+                this.rightEye.scale.set(1.2, 0.8, 1);
+                break;
+            case 'curious':
+                this.leftEye.scale.set(1.4, 1.4, 1);
+                this.rightEye.scale.set(1.4, 1.4, 1);
+                break;
+            case 'thinking':
+                this.leftEye.scale.set(0.8, 1.2, 1);
+                this.rightEye.scale.set(0.8, 1.2, 1);
+                break;
+            case 'interested':
+                this.leftEye.scale.set(1.1, 1.3, 1);
+                this.rightEye.scale.set(1.1, 1.3, 1);
+                break;
+            default:
+                this.leftEye.scale.set(1, 1, 1);
+                this.rightEye.scale.set(1, 1, 1);
+        }
+        
+        // Reset after emotion duration
+        setTimeout(() => {
+            this.agentBody.material.emissiveIntensity = 0.2;
+            this.leftEye.scale.set(1, 1, 1);
+            this.rightEye.scale.set(1, 1, 1);
+        }, 3000);
+    }
+    
     getStageConfig() {
         const stages = {
             seed: { completion: [0, 25], size: 1.0, color: '#22d3ee' },
@@ -206,7 +344,6 @@ export class TamagotchiAgent {
             (roadmapCompletion * 0.34)
         );
         
-        // Determine stage
         const newStage = this.completion <= 25 ? 'seed' :
                         this.completion <= 50 ? 'sprout' :
                         this.completion <= 80 ? 'bloom' : 'master';
@@ -223,14 +360,10 @@ export class TamagotchiAgent {
         const stageConfig = this.getStageConfig();
         this.color = stageConfig.color;
         
-        // Update materials
         this.agentBody.material.color.setHex(this.color.replace('#', '0x'));
         this.agentBody.material.emissive.setHex(this.color.replace('#', '0x'));
         
-        // Recreate growth elements
         this.createGrowthElements();
-        
-        // Trigger evolution animation
         this.playEvolutionAnimation();
     }
     
@@ -238,12 +371,10 @@ export class TamagotchiAgent {
         const stageConfig = this.getStageConfig();
         const targetScale = stageConfig.size;
         
-        // Smooth scaling
         this.agentGroup.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
     }
     
     playEvolutionAnimation() {
-        // Flash effect
         const originalIntensity = this.agentBody.material.emissiveIntensity;
         this.agentBody.material.emissiveIntensity = 1.0;
         
@@ -251,7 +382,6 @@ export class TamagotchiAgent {
             this.agentBody.material.emissiveIntensity = originalIntensity;
         }, 500);
         
-        // Scale pulse
         const originalScale = this.agentGroup.scale.clone();
         this.agentGroup.scale.multiplyScalar(1.3);
         
@@ -265,37 +395,14 @@ export class TamagotchiAgent {
     }
     
     updateSpatialPosition() {
-        // Position agent based on UI focus
         this.agentGroup.position.set(0, 0, 0);
-        this.agentGroup.rotation.y += 0.005; // Gentle rotation
+        this.agentGroup.rotation.y += 0.005;
     }
     
     playBreathingAnimation() {
         const time = Date.now() * 0.002;
         const breathScale = 1 + Math.sin(time) * 0.05;
         this.agentBody.scale.y = breathScale;
-    }
-    
-    playMoodAnimation(mood) {
-        this.mood = mood;
-        
-        switch(mood) {
-            case 'happy':
-                this.leftEye.scale.set(1.2, 0.8, 1);
-                this.rightEye.scale.set(1.2, 0.8, 1);
-                break;
-            case 'excited':
-                this.leftEye.scale.set(1.5, 1.5, 1);
-                this.rightEye.scale.set(1.5, 1.5, 1);
-                break;
-            case 'thinking':
-                this.leftEye.scale.set(0.5, 1.2, 1);
-                this.rightEye.scale.set(0.5, 1.2, 1);
-                break;
-            default:
-                this.leftEye.scale.set(1, 1, 1);
-                this.rightEye.scale.set(1, 1, 1);
-        }
     }
     
     getPersonalityMessage() {
@@ -326,13 +433,53 @@ export class TamagotchiAgent {
         return stageMessages[Math.floor(Math.random() * stageMessages.length)];
     }
     
+    getObjectReactionMessage(objectType) {
+        const reactions = {
+            laptop: [
+                "I see a laptop - time to create something amazing! 💻",
+                "That looks like your creative workspace! Want to optimize it?",
+                "A laptop means productivity! What are you building today?"
+            ],
+            plant: [
+                "I love seeing plants - they grow like your business! 🌱",
+                "Nature inspires creativity. What does this plant teach you?",
+                "Growing things takes patience, just like your mission!"
+            ],
+            person: [
+                "I see someone! Are they part of your network? 👥",
+                "People are your greatest asset. How can I help you connect?",
+                "Every person is a potential collaborator!"
+            ],
+            book: [
+                "Books contain wisdom for your journey! 📚",
+                "Learning never stops. What insights are you gaining?",
+                "Knowledge feeds growth - what are you reading?"
+            ],
+            card: [
+                "I see a business card - should I help you network? 💼",
+                "Connections drive success! Want me to save this contact?",
+                "Every card is an opportunity!"
+            ]
+        };
+        
+        const category = Object.keys(reactions).find(key => 
+            objectType.toLowerCase().includes(key)
+        ) || 'default';
+        
+        if (reactions[category]) {
+            return reactions[category][Math.floor(Math.random() * reactions[category].length)];
+        }
+        
+        return "I see something interesting! Tell me more about it.";
+    }
+    
     animate() {
         requestAnimationFrame(() => this.animate());
         
         this.playBreathingAnimation();
         this.updateSpatialPosition();
+        this.updateEyeTracking();
         
-        // Animate growth elements
         if (this.growthElements) {
             this.growthElements.forEach((element, index) => {
                 if (element.type === 'Points') {

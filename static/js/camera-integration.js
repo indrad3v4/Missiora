@@ -1,21 +1,27 @@
 /**
- * Camera Integration for Mixed Reality Experience
- * Handles camera feed, AR overlay, and spatial UI positioning
+ * Enhanced Camera Integration with CLIP Vision Analysis
+ * Handles camera feed, object detection, and AR overlays
  */
 
 export class CameraIntegration {
     constructor() {
         this.stream = null;
         this.videoElement = null;
+        this.canvasElement = null;
         this.isActive = false;
         this.hasPermission = false;
+        this.analysisInterval = null;
+        this.detectedObjects = [];
+        this.onObjectDetection = null;
         
         this.init();
     }
     
     async init() {
         this.createVideoElement();
+        this.createCanvasElement();
         await this.requestCameraAccess();
+        this.startObjectDetection();
     }
     
     createVideoElement() {
@@ -36,6 +42,12 @@ export class CameraIntegration {
         `;
         
         document.body.appendChild(this.videoElement);
+    }
+    
+    createCanvasElement() {
+        this.canvasElement = document.createElement('canvas');
+        this.canvasElement.style.display = 'none';
+        document.body.appendChild(this.canvasElement);
     }
     
     async requestCameraAccess() {
@@ -65,7 +77,6 @@ export class CameraIntegration {
     }
     
     showFallbackBackground() {
-        // Gradient fallback when camera unavailable
         document.body.style.background = `
             linear-gradient(135deg, 
                 #667eea 0%, 
@@ -81,11 +92,78 @@ export class CameraIntegration {
         }
     }
     
-    dispatchCameraEvent(eventType) {
+    captureFrame() {
+        if (!this.videoElement || !this.canvasElement) return null;
+        
+        const canvas = this.canvasElement;
+        const context = canvas.getContext('2d');
+        
+        canvas.width = this.videoElement.videoWidth;
+        canvas.height = this.videoElement.videoHeight;
+        
+        context.drawImage(this.videoElement, 0, 0);
+        
+        return canvas.toDataURL('image/jpeg', 0.8);
+    }
+    
+    async analyzeFrame() {
+        if (!this.hasPermission || !this.isActive) return;
+        
+        const frameData = this.captureFrame();
+        if (!frameData) return;
+        
+        try {
+            const response = await fetch('/api/vision/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    image: frameData,
+                    timestamp: Date.now()
+                })
+            });
+            
+            if (response.ok) {
+                const analysisResult = await response.json();
+                this.handleDetectionResult(analysisResult);
+            }
+        } catch (error) {
+            console.error('Vision analysis failed:', error);
+        }
+    }
+    
+    handleDetectionResult(result) {
+        this.detectedObjects = result.objects || [];
+        
+        if (this.onObjectDetection) {
+            this.onObjectDetection(result);
+        }
+        
+        this.dispatchCameraEvent('vision:objects-detected', result);
+    }
+    
+    startObjectDetection() {
+        // Capture and analyze frame every 2 seconds
+        this.analysisInterval = setInterval(() => {
+            this.analyzeFrame();
+        }, 2000);
+    }
+    
+    stopObjectDetection() {
+        if (this.analysisInterval) {
+            clearInterval(this.analysisInterval);
+            this.analysisInterval = null;
+        }
+    }
+    
+    dispatchCameraEvent(eventType, data = {}) {
         window.dispatchEvent(new CustomEvent(eventType, {
             detail: {
                 hasCamera: this.hasPermission,
-                isActive: this.isActive
+                isActive: this.isActive,
+                detectedObjects: this.detectedObjects,
+                ...data
             }
         }));
     }
@@ -99,6 +177,8 @@ export class CameraIntegration {
     }
     
     stopCamera() {
+        this.stopObjectDetection();
+        
         if (this.stream) {
             this.stream.getTracks().forEach(track => track.stop());
             this.stream = null;
@@ -123,6 +203,9 @@ export class CameraIntegration {
         this.stopCamera();
         if (this.videoElement) {
             this.videoElement.remove();
+        }
+        if (this.canvasElement) {
+            this.canvasElement.remove();
         }
     }
 }
