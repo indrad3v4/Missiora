@@ -37,29 +37,46 @@ def create_app(config_name='default'):
     # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)
-    login_manager.login_view = 'login'
+    login_manager.login_view = 'legacy.login'
     
     # Set up OpenAI API key
     os.environ["OPENAI_API_KEY"] = os.environ.get("OPENAI_API_KEY", "")
     
-    # Register blueprints
-    from layer2_interfaces.controllers.onboarding_controller import onboarding_bp
-    from layer2_interfaces.controllers.agent_controller import agent_bp
-    from layer2_interfaces.controllers.milestone_controller import milestone_bp
+    # Register blueprints (with error handling for missing dependencies)
+    try:
+        from layer2_interfaces.controllers.onboarding_controller import onboarding_bp
+        app.register_blueprint(onboarding_bp)
+    except ImportError:
+        app.logger.warning("Onboarding controller not available")
     
-    app.register_blueprint(onboarding_bp)
-    app.register_blueprint(agent_bp)
-    app.register_blueprint(milestone_bp)
+    try:
+        from layer2_interfaces.controllers.agent_controller import agent_bp
+        app.register_blueprint(agent_bp)
+    except ImportError:
+        app.logger.warning("Agent controller not available")
+        
+    try:
+        from layer2_interfaces.controllers.milestone_controller import milestone_bp
+        app.register_blueprint(milestone_bp)
+    except ImportError:
+        app.logger.warning("Milestone controller not available")
     
     # Import legacy routes for compatibility
-    from . import legacy_routes
+    from .legacy_routes import legacy_bp
+    app.register_blueprint(legacy_bp)
     
-    # Import health check and auth blueprints
-    from health_check import health_bp
-    from replit_auth import make_replit_blueprint
-    
-    app.register_blueprint(health_bp, url_prefix="/health")
-    app.register_blueprint(make_replit_blueprint(), url_prefix="/auth")
+    # Import health check and auth blueprints (with error handling)
+    try:
+        from health_check import health_bp
+        app.register_blueprint(health_bp, url_prefix="/health")
+    except ImportError:
+        app.logger.warning("Health check blueprint not available")
+        
+    try:
+        from replit_auth import make_replit_blueprint
+        app.register_blueprint(make_replit_blueprint(), url_prefix="/auth")
+    except ImportError:
+        app.logger.warning("Replit auth blueprint not available")
     
     # User loader
     from layer3_frameworks.db.models import User
