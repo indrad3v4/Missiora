@@ -5,8 +5,8 @@ from flask_login import login_user, logout_user, login_required, current_user
 import os
 import requests
 import time
-from layer3_frameworks.flask_app import db
-from layer3_frameworks.db.models import User, Conversation, Message, UserGoal, UserInsight, Milestone
+from src.layer3_frameworks.flask_app import db
+from src.layer3_frameworks.db.models import User, Conversation, Message, UserGoal, UserInsight, Milestone
 from werkzeug.security import generate_password_hash
 import json
 from web3 import Web3

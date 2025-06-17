@@ -2,8 +2,8 @@
 
 from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
-from layer1_use_cases.feedback_service import FeedbackService
-from layer2_interfaces.presenters.feedback_presenter import FeedbackPresenter
+from src.layer1_use_cases.feedback_service import FeedbackService
+from src.layer2_interfaces.presenters.feedback_presenter import FeedbackPresenter
 
 feedback_bp = Blueprint('feedback', __name__, url_prefix='/api/feedback')
 
