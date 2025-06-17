@@ -12,7 +12,7 @@ def test_session_store_persistence():
         # Store conversation history
         store.update_conversation_history('user123', {
             'user': 'Hello, I need help with my business',
-            'agent': 'I'd be happy to help you with your business needs.'
+            'agent': 'I would be happy to help you with your business needs.'
         })
         
         # Store user data
@@ -25,6 +25,19 @@ def test_session_store_persistence():
         history = store2.get_conversation_history('user123')
         assert len(history) == 1
         assert history[0]['user'] == 'Hello, I need help with my business'
+
+if __name__ == "__main__":
+    try:
+        test_session_store_persistence()
+        print("✓ Session persistence test passed")
+        
+        test_conversation_history_limits()
+        print("✓ Conversation limits test passed")
+        
+        print("✓ All session store tests passed")
+    except Exception as e:
+        print(f"✗ Session store test failed: {e}")
+        exit(1)
         
         preferences = store2.get_user_data('user123', 'preferences')
         assert preferences['theme'] == 'dark'

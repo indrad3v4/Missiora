@@ -1,6 +1,5 @@
 """Health check tests"""
 
-import pytest
 from layer3_frameworks.flask_app import create_app
 
 def test_app_boots():
