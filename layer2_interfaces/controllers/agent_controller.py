@@ -88,3 +88,62 @@ def public_chat():
             'agent': 'orchestrator'
         }
         return jsonify(agent_presenter.present_agent_response(fallback_response))
+
+@agent_bp.route('/api/agent/interact', methods=['POST'])
+@login_required_after_limit
+def interact():
+    """Handle agent interactions with login delay logic and session persistence"""
+    try:
+        data = request.get_json()
+        user_message = data.get('message', '')
+        
+        # Get user ID for session management
+        user_id = current_user.id if current_user.is_authenticated else 'anonymous'
+        
+        # Load conversation history from session store
+        conversation_history = session_store.get_conversation_history(user_id)
+        
+        # Get response from agent orchestrator
+        response = get_agent_response(user_message, conversation_history)
+        
+        # Update conversation history in session store
+        session_store.update_conversation_history(user_id, {
+            'user': user_message,
+            'agent': response.get('reply', '') if isinstance(response, dict) else str(response),
+            'timestamp': str(datetime.utcnow())
+        })
+        
+        return jsonify({
+            'success': True,
+            'response': response,
+            'user_id': user_id,
+            'interaction_count': session.get('agent_interactions', 0)
+        })
+    
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@agent_bp.route('/api/agent/history', methods=['GET'])
+@login_required
+def get_history():
+    """Get conversation history for authenticated user"""
+    try:
+        user_id = current_user.id if current_user.is_authenticated else None
+        if not user_id:
+            return jsonify({'error': 'Authentication required'}), 401
+            
+        history = session_store.get_conversation_history(user_id)
+        
+        return jsonify({
+            'success': True,
+            'history': history
+        })
+    
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500

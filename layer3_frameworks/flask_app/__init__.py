@@ -61,9 +61,40 @@ def create_app(config_name='default'):
     except ImportError:
         app.logger.warning("Milestone controller not available")
     
+    try:
+        from layer2_interfaces.controllers.feedback_controller import feedback_bp
+        app.register_blueprint(feedback_bp)
+    except ImportError:
+        app.logger.warning("Feedback controller not available")
+    
+    try:
+        from layer2_interfaces.controllers.auth_controller import auth_bp
+        app.register_blueprint(auth_bp)
+    except ImportError:
+        app.logger.warning("Auth controller not available")
+    
     # Import legacy routes for compatibility
     from .legacy_routes import legacy_bp
     app.register_blueprint(legacy_bp)
+    
+    # Create database tables
+    with app.app_context():
+        from layer3_frameworks.db.models import User, Conversation, Message, UserGoal, UserInsight, Milestone
+        db.create_all()
+    
+    # Serve Vue SPA for non-API routes
+    @app.route('/')
+    def serve_vue_home():
+        """Serve Vue.js SPA home page"""
+        import os
+        vue_index = os.path.join(app.root_path, '../../layer3_frameworks/vue_frontend/dist/index.html')
+        
+        if os.path.exists(vue_index):
+            return app.send_static_file('../../layer3_frameworks/vue_frontend/dist/index.html')
+        else:
+            # Fallback to legacy routes if Vue build not available
+            from flask import redirect, url_for
+            return redirect(url_for('legacy.index'))
     
     # Import health check and auth blueprints (with error handling)
     try:
