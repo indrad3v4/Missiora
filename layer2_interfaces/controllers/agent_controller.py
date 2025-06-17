@@ -1,16 +1,35 @@
 """Agent Controller - Handles AI agent interactions"""
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session
 from flask_login import login_required, current_user
 from layer1_use_cases.agents_sdk import get_agent_response
 from layer1_use_cases.session_manager import SessionManager
 from layer2_interfaces.presenters.agent_output_presenter import AgentOutputPresenter
+from layer3_frameworks.db.session_store import SessionStore
+from datetime import datetime
 
 agent_bp = Blueprint('agent', __name__)
 
 # Initialize services
 session_manager = SessionManager()
 agent_presenter = AgentOutputPresenter()
+session_store = SessionStore()
+
+def login_required_after_limit(f):
+    """Custom decorator allowing 10 free interactions before requiring auth"""
+    def decorated_function(*args, **kwargs):
+        interaction_count = session.get('agent_interactions', 0)
+        
+        if interaction_count < 10:
+            session['agent_interactions'] = interaction_count + 1
+            return f(*args, **kwargs)
+        else:
+            if not current_user.is_authenticated:
+                return jsonify({'error': 'Authentication required after 10 free interactions'}), 401
+            return f(*args, **kwargs)
+    
+    decorated_function.__name__ = f.__name__
+    return decorated_function
 
 @agent_bp.route('/api/chat', methods=['POST'])
 @login_required

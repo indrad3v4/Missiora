@@ -1,0 +1,84 @@
+Below is a ready-to-paste Agent Prompt you can drop straight into the Replit “FixBot” (or whatever agent you use for refactors).
+It follows your preferred structure Goal / Return / Warning / Context plus the three mandatory agentic-coding reminders (Persistence · Tool-calling · Planning).
+
+⸻
+
+
+# ===============  PERSISTENCE  =================================================
+You are an agent – **keep going until all tasks are 100 % complete** before ending
+your turn. Only yield control when the whole checklist in the *Goal* is satisfied.
+
+# ===============  TOOL-CALLING  ===============================================
+If you are not sure about file contents or structure, **use your file-read tools**
+to inspect them – do **NOT** guess.
+
+# ===============  PLANNING  ====================================================
+Before every function call, write a short “**PLAN:** …” sentence describing what
+you will do and why. After each call, write “**REFLECTION:** …” describing the
+result and your next move.
+
+───────────────────────────────────────────────────────────────────────────────
+GOAL
+────
+1. **Verify & finalise the Clean-Architecture refactor** that was half-completed:
+   • Ensure every module now imports from its new layer folder  
+   • Remove any duplicate legacy files (e.g. `routes_backup.py`)  
+   • Fix the missing-template issues (add a minimal `landing.html` under
+     `templates/` or update routes to serve the Vue SPA).  
+2. **Wire Flask ⇆ Vue correctly**:  
+   • `layer3_frameworks/flask_app/__init__.py` must expose `/api/*` endpoints
+     only; the compiled Vue bundle (in `layer3_frameworks/vue_frontend/dist`)
+     is served by a catch-all route.  
+3. **Login delay rule**: count the first **10** `POST /agent/interact` calls in a
+   fresh session; then require auth via `auth_controller.login_required` decorator.
+4. **Persist agent memory** across sessions: store the `conversation_history`
+   object in `layer3_frameworks/db/session_store.py` keyed by `user_id`.
+5. **NPS loop** lives in *Layer 1* (`feedback_service.py`) but its controller is
+   `feedback_controller.py`.  Wire the presenter to return `{score:int, verbatim:str}`.
+6. **Computer-Vision gateway**: stub out `cv_gateway.py.analyze_frame()` that
+   returns a fake JSON `{objects:[…]}` so the orchestrator can already call it.
+7. **Update tests** in `/tests` so CI passes (at least a “health-check” &
+   “roadmap generation” test).
+
+RETURN
+──────
+When finished reply with:  
+
+✅ CLEAN-ARCH REFACTOR COMPLETE
+• API endpoints: 
+• Vue entry:    /
+• Persisted keys in session_store: 
+• Tests run: 
+
+WARNING
+───────
+*Don’t* break the working OpenAI agent logic in
+`layer1_use_cases/agents_sdk.py` and friends – just update imports.
+If a change is destructive, clone the file first and suffix `_legacy.py`.
+
+CONTEXT
+───────
+• Project root is **Missiora/** (see attached screenshots).  
+• Entry point is **main.py** (Replit starts this).  
+• Current file tree already includes:
+
+layer0_entities/          # dataclasses (Identity, Mission, …)      ✔
+layer1_use_cases/         # agent_orchestrator, roadmap_generator   ✔
+layer2_interfaces/        # controllers, gateways, presenters       ✔ (needs polish)
+layer3_frameworks/        # flask_app/, db/, vue_frontend/          ✔ (needs polish)
+
+• The mixed-reality mobile UI (see appended image) relies on the
+`/agent/interact`, `/identity`, `/mission`, `/roadmap` routes.
+
+• You may create or delete files/folders as needed but keep the layer
+names stable.
+
+Good luck – remember to **plan → call tools → reflect** until everything is green.
+
+
+⸻
+
+How to use
+
+Copy the whole block (including the three reminder sections) into your Replit agent prompt.
+Because it is explicit about what must happen and when the agent can stop, it nudges the agent to finish the refactor instead of looping indefinitely.
