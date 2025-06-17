@@ -1,6 +1,6 @@
 """Health check tests"""
 
-from layer3_frameworks.flask_app import create_app
+from src.layer3_frameworks.flask_app import create_app
 
 def test_app_boots():
     """Test that the application boots successfully"""

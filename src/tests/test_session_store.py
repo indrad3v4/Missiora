@@ -2,7 +2,7 @@
 
 import os
 import tempfile
-from layer3_frameworks.db.session_store import SessionStore
+from src.layer3_frameworks.db.session_store import SessionStore
 
 def test_session_store_persistence():
     """Test that session data persists correctly"""
