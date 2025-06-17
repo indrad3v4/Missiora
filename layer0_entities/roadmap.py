@@ -1,6 +1,6 @@
 """Roadmap Entity - Collection of milestones"""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional
 from .milestone import Milestone
 
@@ -9,11 +9,9 @@ class Roadmap:
     """User's roadmap composed of milestones"""
     title: Optional[str] = None
     description: Optional[str] = None
-    milestones: List[Milestone] = None
+    milestones: List[Milestone] = field(default_factory=list)
     
-    def __post_init__(self):
-        if self.milestones is None:
-            self.milestones = []
+
     
     def completion_percentage(self) -> float:
         """Calculate completion percentage of roadmap"""

@@ -38,5 +38,5 @@ class User:
     
     def is_profile_complete(self) -> bool:
         """Check if user profile is sufficiently complete"""
-        return (self.identity and self.identity.is_complete() and 
-                self.mission and self.mission.is_complete())
+        return bool(self.identity and self.identity.is_complete() and 
+                   self.mission and self.mission.is_complete())
