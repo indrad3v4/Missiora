@@ -1,0 +1,66 @@
+### GOAL
+Restructure the current Missiora Replit project into clean-architecture layers while preserving all existing behaviour.
+
+1.  Create the directory tree:
+
+    MissioraAgency/
+      ├── main.py                               # Flask entry-point (renamed from app.py)
+      ├── config.py
+      ├── requirements.txt
+      ├── layer0_entities/…
+      ├── layer1_use_cases/…
+      ├── layer2_interfaces/
+      │     ├── controllers/…
+      │     ├── presenters/…
+      │     └── gateways/…
+      ├── layer3_frameworks/
+      │     ├── flask_app/…
+      │     ├── db/…
+      │     └── vue_frontend/  (placeholder)
+      └── tests/
+
+2.  **Move / rename files**:
+
+    * Rename current `app.py` ➜ `main.py` and move it into the repo root (`MissioraAgency/`).
+    * Keep `agents_sdk.py`, `agent_service.py`, `agent_orchestrator.py` **exactly** as they are but relocate them to `layer1_use_cases/` (update imports accordingly).
+    * Any existing Flask routes go into `layer2_interfaces/controllers/onboarding_controller.py` and `agent_controller.py` (create Blueprints and register them in `flask_app/__init__.py`).
+
+3.  **Add placeholder modules** (`__init__.py` plus minimal stubs) for the new directories so imports resolve.
+
+4.  **Update import paths** everywhere (search+replace):  
+
+    * `from app import app` ➜ `from main import app`  
+    * Update relative imports to reflect new package paths.
+
+5.  **Adjust Replit-startup**: ensure `main.py` creates `Flask(__name__)` and is the file Replit runs (`entrypoint = "python main.py"` in `.replit`).
+
+6.  **Tests:** if a `tests/` folder already exists, make sure all tests pass; otherwise create a minimal pytest that imports `main.app` and returns status 200 for `/healthz`.
+
+### RETURN
+Return a single unified **diff-patch** that:
+* Creates/moves all files & folders described above,
+* Updates imports & Flask app factory,
+* Adds any required `__init__.py`,
+* Ends with the sentinel line `###RUN_TESTS###`.
+
+### WARNING
+* **Do NOT alter** functional code inside `agents_sdk.py`, `agent_service.py`, or `agent_orchestrator.py` beyond fixing import paths.
+* Replit is case-sensitive; path typos will break the build.
+* Keep the OpenAI Agents SDK initialisation logic untouched—only move its file.
+* Do not delete any existing files unless explicitly moved.
+
+### CONTEXT
+* We follow the clean-architecture map (Entities → UseCases → Interfaces → Frameworks) shown in the attached research PNG.
+* Images included are **design reference only**; no image generation is required.
+* UI is delivered by a separate Vue SPA; backend just serves JSON APIs per controller specs.
+* `Identity`, `Mission`, `Roadmap`, `Milestone`, `User` are simple `@dataclass`es in `layer0_entities/`.
+* Computer-vision helper code (if any) will later live in `layer2_interfaces/gateways/cv_gateway.py`; create the path but no implementation now.
+* Existing Flask routes:  
+  `/identity`, `/mission`, `/roadmap`, `/agent`, `/healthz` — move them into the appropriate Blueprints.
+
+### AGENTIC REMINDERS
+You are an **agent** — keep going until the user’s query is completely resolved before yielding.  
+If you are **not sure** about file content or codebase structure, **use your tools** (file search / read) instead of guessing.  
+**Plan extensively** before each tool call and reflect on its result; do **not** rely solely on chained tool calls.
+
+###RUN_TESTS###
