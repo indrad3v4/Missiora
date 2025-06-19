@@ -93,9 +93,49 @@ def create_app(config_name='default'):
         </html>
         """
     
+    # Serve Vue frontend
+    import os
+    vue_dist_path = os.path.join(os.path.dirname(__file__), '..', 'vue_frontend', 'dist')
+    
+    if os.path.exists(os.path.join(vue_dist_path, 'index.html')):
+        # Serve built Vue SPA
+        from flask import send_from_directory, send_file
+        
+        @app.route('/')
+        def index():
+            """Serve Vue SPA index.html"""
+            return send_file(os.path.join(vue_dist_path, 'index.html'))
+        
+        @app.route('/assets/<path:filename>')
+        def vue_assets(filename):
+            """Serve Vue SPA assets"""
+            return send_from_directory(os.path.join(vue_dist_path, 'assets'), filename)
+        
+        @app.route('/<path:path>')
+        def catch_all(path):
+            """Catch-all route for Vue SPA routing"""
+            # For SPA routing, return index.html for all non-API routes
+            if not path.startswith('api/') and not path.startswith('tools/'):
+                return send_file(os.path.join(vue_dist_path, 'index.html'))
+            else:
+                return "Not found", 404
+    else:
+        @app.route('/')
+        def index():
+            """Fallback when Vue build not found"""
+            return """
+            <!DOCTYPE html>
+            <html><head><title>Missiora Agency</title></head>
+            <body><h1>Missiora Agency</h1><p>Vue build not found - run npm run build in src/layer3_frameworks/vue_frontend</p></body>
+            </html>
+            """
+    
     # Import legacy routes for compatibility (register with prefix to avoid conflicts)
-    from .legacy_routes import legacy_bp
-    app.register_blueprint(legacy_bp, url_prefix='/legacy')
+    try:
+        from .legacy_routes import legacy_bp
+        app.register_blueprint(legacy_bp, url_prefix='/legacy')
+    except ImportError:
+        pass
     
     # Create database tables
     with app.app_context():

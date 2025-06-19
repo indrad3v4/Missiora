@@ -14,8 +14,9 @@ class CVGateway:
         self._setup_models()
     
     def _setup_models(self):
-        """Initialize tiny models for minimal disk usage"""
+        """Initialize CV models - optional heavyweight dependencies"""
         try:
+            # Optional import for CV functionality
             from transformers import pipeline
             
             # Use tiny testing models to minimize disk usage
@@ -33,7 +34,7 @@ class CVGateway:
             
         except ImportError:
             # Graceful fallback if transformers not available
-            pass
+            print("CV models not available - install transformers for full functionality")
         except Exception as e:
             print(f"CV models setup warning: {e}")
     
