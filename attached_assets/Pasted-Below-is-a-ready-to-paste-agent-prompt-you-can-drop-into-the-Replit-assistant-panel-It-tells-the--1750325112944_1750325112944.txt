@@ -1,0 +1,91 @@
+Below is a ready-to-paste agent prompt you can drop into the Replit “assistant” panel.
+It tells the coding-agent exactly how to finish the filesystem cleanup so that only main.py and src/… stay at the repo root, every other Python file sits in a well-defined Clean-Architecture layer, and nothing else gets lost or broken.
+
+⸻
+
+
+###############################################################################
+# MISSIORA CLEAN-ARCH FINALISER – REPLIT AGENT PROMPT
+###############################################################################
+GOAL
+----
+Restructure the current Missiora repository so that:
+
+1. **Repo root** contains only  
+   •  `main.py` → single entry point that imports `create_app()` from `src.layer3_frameworks.flask_app`  
+   •  `src/` folder (all app code lives here)  
+   •  `instance/` folder (run-time artefacts – sqlite DB, `session_store.json`, .env, etc.)  
+   •  `README*`, `requirements*.txt`, `package*.json`, `pyproject.toml` remain untouched
+
+2. Inside **src/** create & strictly enforce the four Clean-Architecture rings  
+
+src/
+layer0_entities/          # yellow – Enterprise business rules (pure dataclasses)
+layer1_use_cases/         # red    – Application business rules
+layer2_interfaces/        # green  – Adapters (controllers ▸ presenters ▸ gateways)
+layer3_frameworks/        # blue   – Frameworks & drivers (Flask, DB, Vue, CV devices)
+
+•  Anything still loose in `src/` (e.g. `bootstrap_milestones.py`, stray tests, etc.)
+   must be moved into the correct layer or deleted if duplicated.  
+•  **Tests** → `src/tests/…` and use only relative imports (`from layerX_… import …`).  
+•  **Vue** front-end stub stays in `src/layer3_frameworks/vue_frontend/`.  
+•  **Flask app factory** lives in `src/layer3_frameworks/flask_app/__init__.py`.  
+•  **instance/** remains outside `src/` because it is a run-time volume, not code.
+  Reference it via `Flask.instance_path` – do NOT move it.
+
+3. **Import hygiene**  
+•  No absolute “top-level” imports of project modules – use `from layer1_use_cases…`.  
+•  Update every changed import; run a quick startup check (`python main.py`) at the end.
+
+4. **Preserve agent logic** in `layer1_use_cases/agent_orchestrator.py` and friends exactly
+as-is; only edit import paths.
+
+RETURN (WHAT TO PRODUCE)
+------------------------
+* The refactored directory tree (printed as a tree view in the console log).  
+* A one-paragraph confirmation that `python main.py` starts the Flask server without import
+errors and the `/health` endpoint returns 200.  
+* **Do not print file contents** – they are already in the repo.
+
+WARNING / CONSTRAINTS
+---------------------
+* Do **NOT** edit `instance/` files – they hold user data.  
+* Do **NOT** rename `main.py`.  
+* Do **NOT** break OpenAI agent SDK usage – keep `agent_orchestrator`, `agents_sdk`, etc.
+* Remove any duplicate or legacy files left in the root after migration.
+
+CONTEXT
+-------
+* Current root still contains leftover files (`routes.py`, `uiux.py`, etc.).  
+* `src/` already holds preliminary layers plus misc. “garbage” files.  
+* The desired UX (see attached DALL·E mock-up) flows: Identity → Mission → Roadmap.  
+* Computer-vision helpers will live later in `layer2_interfaces/gateways/cv_gateway.py`.
+
+###############################################################################
+# AGENTIC REMINDERS (required by Missiora workflow)
+###############################################################################
+PERSISTENCE → You are an agent – please keep going until the repository matches the
+goal and the server starts cleanly. Only yield back when **all** tasks are complete.
+
+TOOL-CALLING → If you are uncertain about any file’s content or path, read it with
+your file-tools first – never guess.
+
+PLANNING → Before each file move or code-edit, write a short “PLAN:” line that states
+*exactly* what you will do; after executing, write “REFLECTION:” with the outcome.
+
+###############################################################################
+
+
+⸻
+
+Why instance/ lives outside src/
+
+instance/ holds run-time data (SQLite file, session JSON, secrets).
+Per Flask best practice and Uncle Bob’s Clean Architecture, run-time artefacts belong
+to the outer-most Frameworks & Drivers ring, not in the compiled source tree.
+Placing it beside main.py keeps the code-only src/ tree pure and portable while
+still letting the app access it via current_app.instance_path.
+
+Paste the prompt above into Replit’s agent panel and let it run – it will finish the
+cleanup and hand back a tidy, layer-centric repo ready for the upcoming App.vue
+work.
