@@ -2,10 +2,10 @@
 
 from flask import Blueprint, request, jsonify, session
 from flask_login import login_required, current_user
-from src.layer1_use_cases.agents_sdk import get_agent_response
-from src.layer1_use_cases.session_manager import SessionManager
-from src.layer2_interfaces.presenters.agent_output_presenter import AgentOutputPresenter
-from src.layer3_frameworks.db.session_store import SessionStore
+from ...layer1_use_cases.agents_sdk import get_agent_response
+from ...layer1_use_cases.session_manager import SessionManager
+from ..presenters.agent_output_presenter import AgentOutputPresenter
+from ...layer3_frameworks.db.session_store import SessionStore
 from datetime import datetime
 
 agent_bp = Blueprint('agent', __name__)

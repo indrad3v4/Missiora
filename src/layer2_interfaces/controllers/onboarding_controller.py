@@ -3,12 +3,12 @@
 from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
 import json
-from src.layer3_frameworks.db.models import db
-from src.layer1_use_cases.identity_analysis import IdentityAnalysis
-from src.layer1_use_cases.mission_service import MissionService
-from src.layer1_use_cases.roadmap_generator import RoadmapGenerator
-from src.layer2_interfaces.presenters.identity_presenter import IdentityPresenter
-from src.layer2_interfaces.presenters.roadmap_presenter import RoadmapPresenter
+from ...layer3_frameworks.db.models import db
+from ...layer1_use_cases.identity_analysis import IdentityAnalysis
+from ...layer1_use_cases.mission_service import MissionService
+from ...layer1_use_cases.roadmap_generator import RoadmapGenerator
+from ..presenters.identity_presenter import IdentityPresenter
+from ..presenters.roadmap_presenter import RoadmapPresenter
 
 onboarding_bp = Blueprint('onboarding', __name__)
 

@@ -2,9 +2,9 @@
 
 from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
-from src.layer3_frameworks.db.models import Milestone, db
-from src.layer1_use_cases.roadmap_generator import RoadmapGenerator
-from src.layer2_interfaces.presenters.roadmap_presenter import RoadmapPresenter
+from ...layer3_frameworks.db.models import Milestone, db
+from ...layer1_use_cases.roadmap_generator import RoadmapGenerator
+from ..presenters.roadmap_presenter import RoadmapPresenter
 
 milestone_bp = Blueprint('milestone', __name__)
 
