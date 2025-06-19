@@ -1,0 +1,90 @@
+Here’s a single, self-contained prompt you can paste back into the Replit agent.
+It tells the agent exactly what to do (and what not to do) so we end up with a lean, 1-GB-max, Clean-Architecture repo that:
+	•	keeps only the MVP features we need right now;
+	•	finishes wiring the CV gateway + lightweight Gradio demo;
+	•	compiles the Vue 3 SPA correctly during npm run build and serves the pre-built files from Flask;
+	•	removes every extra MB we don’t need.
+
+Copy from the line below down to the final triple-dash and send it to the Replit agent.
+(Do not add anything else; the agent will treat it as the next set of instructions.)
+
+# === Missiora NEXT-STEP MASTER PLAN =========================================
+# Context
+# - Repo now follows Clean Architecture under /src
+# - 10 GB disk-usage is far above our Replit 1 GB quota
+# - Vue SPA compiles, but Flask shows “Vue frontend not built yet”
+# - We added Gradio CV tools; keep the demo minimal (object-detection & captioning)
+
+# High-level Objectives
+1. Shrink the whole project < 1 GB *without* losing MVP features:
+   • Delete *.ipynb*, cached model checkpoints, __pycache__, distros, etc.  
+   • Replace heavyweight dev-deps with light ones; pin minimal versions in requirements.txt & package.json.  
+   • NEVER install full HuggingFace models locally – load small “hf-internal-testing/tiny-random-…“ checkpoints instead.
+
+2. Finalise directory hygiene  
+   • Root contains only: `main.py`, `src/`, `README.md`, `requirements.txt`, `package.json`, `pyproject.toml`, `replit.nix` (if any).  
+   • Inside `src/`:  
+     ├── layer0_entities/  
+     ├── layer1_use_cases/  
+     ├── layer2_interfaces/ (controllers | presenters | gateways)  
+     └── layer3_frameworks/  
+         ├── flask_app/     (blueprints, app factory, templates fallback)  
+         ├── gradio_app/    (very small `app.py` demo)  
+         └── vue_frontend/  (Vite project **with dist only** after build)  
+   • Move *all* Vue source → vue_frontend, run `npm run build`, then delete node_modules & the raw src in Replit; keep **only** the generated `dist/` folder plus a tiny README_UI.md with build notes.
+   • Static assets live in `layer3_frameworks/static/`.
+
+3. Make the backend actually serve the SPA  
+   • On startup, Flask checks `<project_root>/src/layer3_frameworks/vue_frontend/dist/index.html`.  
+   • If missing, return “Vue build not found – run npm run build” (current message).  
+   • Otherwise, register a `StaticFiles` or `send_from_directory` blueprint mounted at `/`.
+
+4. CV Gateway minimal demo  
+   • file: `src/layer2_interfaces/gateways/cv_gateway.py`  
+     - two async funcs: `detect_objects(image)` and `caption_image(image)` calling **tiny** transformers from 🤗 hub.  
+   • file: `src/layer3_frameworks/gradio_app/app.py`  
+     - lightweight Gradio Blocks UI that exposes those two funcs.  
+     - launched only when `python -m src.layer3_frameworks.gradio_app.app` is executed (NOT at Flask boot).
+
+5. Vue 3 SPA requirements  
+   • `App.vue` fetches `/api/identity`, `/api/mission`, `/api/roadmap` once on mount and fills the header card.  
+   • Components already scaffolded (`IdentityCard.vue`, etc.) stay.  
+   • ChatWidget still posts to `/api/agent/interact`.  
+   • Use Pinia for global store.  
+   • Build with `vite build --emptyOutDir`.
+
+6. Testing / CI  
+   • Keep the simple import-smoke tests already in `src/tests`.  
+   • Add a disk-usage guard test: fail if `du -sh . | awk '{print $1}'` > 900M.
+
+# Concrete Todo List (execute in order)
+- [ ] Remove legacy root files (`routes.py`, old templates, etc.) now duplicated in clean layers.  
+- [ ] Strip **all** node_modules, pip caches, `.pytest_cache`, `.mypy_cache`, etc.  
+- [ ] Re-generate package.json with only: vue ^3, pinia, axios, vite, @vitejs/plugin-vue.  
+- [ ] Run `npm ci && npm run build` inside vue_frontend, then delete node_modules & src.  
+- [ ] Implement the CV gateway + Gradio app as described.  
+- [ ] Wire Flask to serve the built dist/ folder.  
+- [ ] Update `README_UI.md` & `IMPLEMENTATION_SUMMARY.md` with build instructions.  
+- [ ] Add the disk-usage guard test.  
+- [ ] Run `python src/tests/run_all.py` (or equivalent) to confirm pass.  
+- [ ] Confirm `du -sh` < 1 GB and log the final size.
+
+# Guard-rails
+* **Do NOT** pull in heavy datasets or models.  
+* Make every new import optional behind `try/except ImportError` if >5 MB.  
+* All new Python code must pass `python -m pip install ruff; ruff check --fix .`  
+* Leave explanatory inline comments where decisions affect future scalability.  
+
+# Deliverables
+* Clean repo structure (listed above)  
+* Working Flask server that shows the Vue SPA by default  
+* `/tools/vision` route auto-opens the Gradio interface  
+* A final message summarising: final disk size, commands to rebuild UI, and next suggested milestone.
+
+# After finishing
+Stop – do **NOT** start new large tasks until the disk-size summary is posted.
+
+# =============================================================================
+
+
+⸻

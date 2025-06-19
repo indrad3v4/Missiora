@@ -77,16 +77,21 @@ def create_app(config_name='default'):
     from .simple_api import simple_api_bp
     app.register_blueprint(simple_api_bp)
     
-    # Mount Gradio CV tools via DispatcherMiddleware
-    from werkzeug.middleware.dispatcher import DispatcherMiddleware
-    try:
-        from ..gradio_app.launcher import create_gradio_app
-        gradio_app = create_gradio_app()
-        app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
-            '/tools/vision': gradio_app
-        })
-    except ImportError as e:
-        app.logger.warning(f"Gradio CV tools not available: {e}")
+    # Add route to launch Gradio CV tools
+    @app.route('/tools/vision')
+    def cv_tools():
+        """Redirect to Gradio CV tools"""
+        return """
+        <!DOCTYPE html>
+        <html><head><title>CV Tools</title></head>
+        <body>
+        <h1>Computer Vision Tools</h1>
+        <p>To launch CV tools, run:</p>
+        <code>python -m src.layer3_frameworks.gradio_app.app</code>
+        <p>Then visit <a href="http://localhost:7860">http://localhost:7860</a></p>
+        </body>
+        </html>
+        """
     
     # Import legacy routes for compatibility (register with prefix to avoid conflicts)
     from .legacy_routes import legacy_bp
