@@ -1,0 +1,129 @@
+Below is a ready-to-paste prompt for your Replit Coding-Agent.
+Drop it into the Replit chat and the agent will (a) finish moving every Vue file into src/layer3_frameworks/vue_frontend, (b) spin up a minimal Vite + Vue 3 project structure there, (c) wire Flask so that / always serves dist/index.html, and (d) generate a clean, mobile-first App.vue shell that matches the “Indradeva” mock-up and talks to your existing /api/* endpoints.
+
+💡 Tip: keep this whole block intact; the sections labelled ### ____ are cues the agent understands.
+
+⸻
+
+🏆 GOAL
+
+Restructure the Vue UI layer inside the Clean-Architecture repo and create a polished base component (App.vue) that will delight first-time users of Missiora Agency.
+
+🌍 CONTEXT
+	•	Current repo root only contains main.py and src/ (good).
+	•	Everything framework-related lives in src/layer3_frameworks.
+	•	Vue files sit in src/layer3_frameworks/vue_frontend/dist/ (a temporary dump from the earlier agent run).
+	•	Flask already serves the landing page but not the SPA yet.
+	•	API routes are under /api/* as created earlier (/api/agent/interact, /api/auth/status, …).
+
+🎯 WHAT TO RETURN
+	1.	Folder layout inside src/layer3_frameworks/vue_frontend:
+
+vue_frontend/
+├─ package.json
+├─ vite.config.js
+├─ index.html
+└─ src/
+   ├─ App.vue        ← generated in step 3
+   ├─ main.js
+   ├─ components/
+   │   ├─ IdentityCard.vue
+   │   ├─ MissionCard.vue
+   │   ├─ RoadmapCard.vue
+   │   └─ ChatWidget.vue
+   └─ assets/        (put mock SVG/icon placeholders here)
+
+
+	2.	An updated Flask blueprint (or tweak to the existing factory) that does:
+
+@app.route("/", defaults={"path": ""})
+@app.route("/<path:path>")
+def serve_spa(path):
+    if path.startswith("api/"):
+        abort(404)
+    return send_from_directory(VUE_DIST, "index.html")
+
+
+	3.	App.vue:
+	•	Composition-API, Vue 3, .
+	•	Dark/Light neutral theme with warm amber accent (#FBBF24).
+	•	Uses Tailwind CSS (invoke CDN build for now).
+	•	Layout = full-screen flex column: header avatar (“Indradeva” panel), center chat bubble asking “What lights you up today?”, bottom nav tabs Identity | Mission | Roadmap.
+	•	Fetches /api/auth/status on mount → shows login banner after 10 messages logic.
+	•	Emits custom events so downstream components can swap in.
+	4.	README_UI.md under vue_frontend/ explaining npm install → npm run build workflow plus how Flask picks up dist/.
+
+⚠️ CONSTRAINTS & WARNINGS
+	•	Do NOT touch business logic in Layers 0–2.
+	•	Only create/modify files in src/layer3_frameworks and main.py routing.
+	•	Leave the existing instance/ folder (DB + session store) untouched.
+	•	Keep App.vue ≤ 250 loc and zero hard-coded API keys.
+	•	All new JS must be lint-clean (standard ESLint defaults).
+	•	Tests in src/tests must still pass (python main.py should boot in Replit).
+
+🛠 AGENT INSTRUCTIONS
+
+You are an agent – keep going until the user’s query is completely resolved before yielding control.
+If you are unsure about any file’s content or the codebase structure, use your tools to read files – do NOT guess.
+You MUST plan extensively before each function call and reflect on outcomes; do not string together blind tool calls.
+
+⸻
+
+📄 STARTER App.vue
+
+The agent should overwrite with a richer version, but give it this scaffold so it knows the style.
+
+<script setup>
+import { ref, onMounted } from 'vue'
+
+const auth = ref(null)
+const error = ref(null)
+
+onMounted(async () => {
+  try {
+    const r = await fetch('/api/auth/status')
+    auth.value = await r.json()
+  } catch (e) {
+    error.value = 'Network error'
+  }
+})
+</script>
+
+<template>
+  <div class="min-h-screen flex flex-col bg-amber-50 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-100">
+    <!-- Header / Avatar panel -->
+    <header class="p-4 flex items-center gap-4">
+      <div class="w-16 h-16 rounded-full bg-amber-200 flex items-center justify-center ring-2 ring-amber-400">
+        😀
+      </div>
+      <div>
+        <h1 class="font-semibold text-xl">Indradeva</h1>
+        <p class="text-sm">Reach €1 K • Kraków • Q3 2025</p>
+      </div>
+    </header>
+
+    <!-- Chat prompt -->
+    <main class="flex-1 flex items-center justify-center">
+      <div class="bg-amber-100 dark:bg-zinc-800 p-6 rounded-xl shadow">
+        <p class="text-lg">What lights you up today?</p>
+      </div>
+    </main>
+
+    <!-- Bottom nav -->
+    <nav class="border-t border-amber-200 dark:border-zinc-700 flex">
+      <button class="flex-1 py-3">Identity</button>
+      <button class="flex-1 py-3">Mission</button>
+      <button class="flex-1 py-3">Roadmap</button>
+    </nav>
+  </div>
+</template>
+
+<style>
+/* Add component-scoped tweaks here */
+</style>
+
+
+⸻
+
+Paste the full block above into the Replit chat.
+Once the agent finishes, you’ll have a Vue scaffold living cleanly inside layer3_frameworks, served by Flask, and ready to grow – with a user experience your solopreneurs will love.
