@@ -53,24 +53,20 @@ def agent_interact():
 def get_identity():
     """Get identity data"""
     return jsonify({
-        'completion': 0,
-        'components': {
-            'values': [],
-            'strengths': [],
-            'passions': [],
-            'experiences': []
-        }
+        'name': 'Indradeva',
+        'location': 'Kraków',
+        'archetype': 'Visionary',
+        'completion': 75
     })
 
 @simple_api_bp.route('/mission', methods=['GET'])
 def get_mission():
     """Get mission data"""
     return jsonify({
-        'completion': 0,
-        'purpose': None,
-        'vision': None,
-        'target_audience': None,
-        'value_proposition': None
+        'goal': 'Reach €1K',
+        'deadline': 'Q3 2025',
+        'purpose': 'Help solopreneurs build sustainable businesses',
+        'completion': 60
     })
 
 @simple_api_bp.route('/roadmap', methods=['GET'])
@@ -78,7 +74,17 @@ def get_roadmap():
     """Get roadmap data"""
     return jsonify({
         'completion': 25,
-        'current_milestone': 'Market Research'
+        'current_milestone': 'Market Research',
+        'next_milestone': 'Product Development'
+    })
+
+@simple_api_bp.route('/roadmap/next', methods=['GET'])
+def get_next_milestone():
+    """Get next milestone data"""
+    return jsonify({
+        'milestone': 'Market Research',
+        'target_value': '€1K',
+        'progress': 25
     })
 
 @simple_api_bp.route('/milestones', methods=['GET'])
