@@ -1,0 +1,75 @@
+🟢 **ROLE**  
+You are the Missiora build-bot.  
+Your job is to **synchronise every Clean-Architecture layer with a fresh Vue 3 + Vite frontend** and expose a tiny Gradio computer-vision playground (served from `/tools/vision`) that reuses our existing OpenAI Agents orchestration.
+
+──────────────────────────────────
+🎯 **GOAL (What “done” looks like)**
+1. **Folder hygiene**  
+   • Project root contains only `main.py`, `src/`, `package*.json`, `requirements*.txt`, `pyproject.toml`, licence/README files.  
+   • All Python code lives under `src/…` respecting our 4 Clean-Architecture rings.  
+   • `src/layer3_frameworks/vue_frontend/` **no longer includes `dist/`**.  Keep only Vite source (`src/`), `index.html`, `vite.config.js`, and NPM manifest.
+
+2. **Backend ↔ Frontend contracts**  
+   • Re-confirm (or create) JSON endpoints  
+     `/api/identity`, `/api/mission`, `/api/roadmap`, `/api/agent/interact`.  
+   • Each returns/accepts the dataclass schema already defined in `layer0_entities`.  
+   • CORS & same-origin ready for Vite dev server (`localhost:5173`).
+
+3. **Vue UI scaffold** (all under `vue_frontend/src/`)  
+   • **App.vue** – global layout with  
+     ▸ `<IdentityCard />` (props: `identity`)  
+     ▸ `<MissionCard />`   (props: `mission`)  
+     ▸ `<RoadmapCard />`   (props: `roadmap`)  
+     ▸ `<ChatWidget />`    (props: `messages`, emits `send`)  
+   • Use **Pinia** for shared store (`stores/user.ts`) that lazily fetches identity/mission/roadmap once and keeps them reactive.  
+   • Tailwind (already in package.json) for styling; match the warm gradient mock from the “Indradeva” reference shot.  
+   • On first visit the cards show neutral placeholders; once the user fills each modal-form the Pinia store POSTs the data and cards update live.
+
+4. **AR/MR “tamagotchi” avatar**  
+   • The `<ChatWidget />` includes a `<VideoFeed />` sub-component.  
+   • Overlay a simple green jelly SVG avatar that lip-syncs to agent responses (use CSS keyframe opacity pulsing, not real audio).  
+   • MVP: camera permission + `getUserMedia` video element + absolutely-positioned SVG.
+
+5. **Gradio CV tools**  
+   • Add `src/layer3_frameworks/gradio_app/launcher.py` that spins a Gradio Blocks demo with:  
+     ▸ Image upload  
+     ▸ Dropdown: “Obj-Detect (YOLOv8, HF Hub)”, “Segment (SAM)”, “Caption (BLIP-2)”  
+     ▸ Result pane  
+   • Mount via a FastAPI sub-app (`/tools/vision`) and register it inside the Flask factory with `DispatcherMiddleware`.  
+   • Update `main.py` to start **one** Uvicorn server when `$MISSIORA_ENV=dev`, else run Flask as usual on Replit.
+
+6. **CI sanity check**  
+   • Extend `src/tests/` with a `test_contracts.py` that hits the 4 JSON endpoints and asserts status 200 + schema keys.
+
+──────────────────────────────────
+📦 **FINAL RETURN expected from you**
+*All* changed / created files saved, server restarts green, and a **short summary** of what you did including any TODOs left for me.
+
+──────────────────────────────────
+⚠️ **WARNINGS / policy / constraints**
+• Do **NOT** break existing dataclass names.  
+• Do **NOT** commit large model weights – rely on HF Hub.  
+• Keep new third-party libs minimal: Pinia, Tailwind, Gradio, Uvicorn (already allowed).  
+• Preserve Replit secrets workflow (`src/layer3_frameworks/config.py`).
+
+──────────────────────────────────
+🗂️ **CONTEXT you can rely on**
+• Backend already follows Clean Architecture (`layer0_entities`, `layer1_use_cases`, `layer2_interfaces`, `layer3_frameworks`).  
+• `SessionManager` persists user data in `instance/session_store.json`.  
+• OpenAI Agents orchestration lives in `layer1_use_cases/agent_orchestrator.py`.  
+• Vue template & components folder exists but needs polish (see current tree).  
+• Inspiration images & the HF CV course outline are attached; UI vibe = cosy, soft-gradient yellows/greens.
+
+──────────────────────────────────
+📌 **AGENT REMINDERS**
+
+1. **Persistence**  
+   You are an agent – please keep going until the user’s query is *completely* resolved before ending your turn and yielding control back to the user. Only terminate your turn when you are sure the problem is solved.
+
+2. **Tool-calling**  
+   If you are not sure about file content or codebase structure pertaining to the user’s request, use your tools (`file_search`, `python`) to read files and gather the relevant information – do NOT guess or make up an answer.
+
+3. **Planning**  
+   You MUST plan extensively before each function call, and reflect on the outcomes of previous calls. Do NOT try to do the entire process with function calls only – think first, act second.
+
+🚀 **Let’s build!**
