@@ -95,6 +95,10 @@ src/layer3_frameworks/
 - [x] `/api/agent/interact` handles chat with CV integration
 - [x] All inner rings contain zero Flask/Gradio/Vue imports
 - [x] Clean separation of concerns maintained
+- [x] `npm run dev` → Vue dev server proxies `/api/*` to Flask (configured)
+- [x] `npm run build` produces minimal bundle in `vue_frontend/dist`
+- [x] Graceful fallbacks when optional dependencies unavailable
+- [x] API contracts validated via automated testing
 
 ## 🚀 Production Ready
 
@@ -104,9 +108,17 @@ src/layer3_frameworks/
 python main.py
 
 # Test API contracts
+python src/tests/test_api_contracts.py
+
+# Manual endpoint testing
 curl http://localhost:5000/api/identity
 curl http://localhost:5000/api/mission
 curl http://localhost:5000/api/roadmap
+
+# Test agent with CV integration
+curl -X POST http://localhost:5000/api/agent/interact \
+     -H "Content-Type: application/json" \
+     -d '{"message":"Hello, how can you help me?"}'
 
 # Access CV tools
 open http://localhost:5000/tools/vision

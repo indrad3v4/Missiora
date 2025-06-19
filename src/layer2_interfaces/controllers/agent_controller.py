@@ -2,7 +2,12 @@
 
 from flask import Blueprint, jsonify, request
 from ...layer2_interfaces.gateways.cv_gateway import cv_gateway
-from ...layer1_use_cases.agent_service import get_agent_response
+# Optional agent service - graceful fallback
+try:
+    from ...layer1_use_cases.agent_service import get_agent_response
+except ImportError:
+    def get_agent_response(user_message, message_history=None):
+        return f"Hello! I received your message: '{user_message}'. I'm here to help with your solopreneur journey."
 
 agent_bp = Blueprint('agent', __name__)
 

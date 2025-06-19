@@ -1,7 +1,7 @@
 """Identity Analysis Use Case - Process and validate identity data"""
 
 from typing import Dict, Any, Optional
-from layer0_entities.identity import Identity
+from ..layer0_entities.identity import Identity
 
 class IdentityAnalysis:
     """Handles identity data processing and analysis"""
