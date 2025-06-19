@@ -91,9 +91,7 @@ def get_next_milestone():
 def generate_roadmap():
     """Generate a new roadmap using AI"""
     try:
-        # Use existing agent orchestration for roadmap generation
-        from ...layer1_use_cases.agent_orchestrator import AgentOrchestrator
-        orchestrator = AgentOrchestrator()
+        # Simple roadmap generation without complex orchestration
         
         # Generate 5-step roadmap
         generated_roadmap = {
