@@ -73,28 +73,43 @@ def create_app(config_name='default'):
     except ImportError:
         app.logger.warning("Auth controller not available")
     
-    # Import legacy routes for compatibility
+    # Import legacy routes for compatibility (register with prefix to avoid conflicts)
     from .legacy_routes import legacy_bp
-    app.register_blueprint(legacy_bp)
+    app.register_blueprint(legacy_bp, url_prefix='/legacy')
     
     # Create database tables
     with app.app_context():
         from ..db.models import User, Conversation, Message, UserGoal, UserInsight, Milestone
         db.create_all()
     
-    # Serve Vue SPA for non-API routes
-    @app.route('/')
-    def serve_vue_home():
-        """Serve Vue.js SPA home page"""
+    # Serve Vue SPA for all non-API routes
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def serve_spa(path=''):
+        """Serve Vue.js SPA for all routes except API"""
+        from flask import send_from_directory, abort
         import os
-        vue_index = os.path.join(app.root_path, '../vue_frontend/dist/index.html')
         
-        if os.path.exists(vue_index):
-            return app.send_static_file('../vue_frontend/dist/index.html')
+        # Don't serve SPA for API routes
+        if path.startswith('api/'):
+            abort(404)
+            
+        # Path to Vue dist directory
+        vue_dist = os.path.join(app.root_path, '../vue_frontend/dist')
+        
+        # If dist directory exists, serve from it
+        if os.path.exists(vue_dist):
+            # Try to serve the specific file first
+            if path and os.path.exists(os.path.join(vue_dist, path)):
+                return send_from_directory(vue_dist, path)
+            # Otherwise serve index.html for SPA routing
+            return send_from_directory(vue_dist, 'index.html')
         else:
-            # Fallback to legacy routes if Vue build not available
-            from flask import redirect, url_for
-            return redirect(url_for('legacy.index'))
+            # Fallback to basic HTML if Vue build not available
+            return '''<!DOCTYPE html>
+<html><head><title>Missiora Agency</title></head>
+<body><h1>Missiora Agency</h1><p>Vue frontend not built yet. Run: npm run build</p></body>
+</html>'''
     
     # Import health check and auth blueprints (with error handling)
     try:
