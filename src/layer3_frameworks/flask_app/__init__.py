@@ -73,6 +73,10 @@ def create_app(config_name='default'):
     except ImportError:
         app.logger.warning("Auth controller not available")
     
+    # Register simple API for Vue frontend
+    from .simple_api import simple_api_bp
+    app.register_blueprint(simple_api_bp)
+    
     # Import legacy routes for compatibility (register with prefix to avoid conflicts)
     from .legacy_routes import legacy_bp
     app.register_blueprint(legacy_bp, url_prefix='/legacy')

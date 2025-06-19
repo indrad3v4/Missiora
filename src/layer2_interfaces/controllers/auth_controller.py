@@ -1,39 +1,34 @@
-"""Authentication controller with login delay logic"""
+"""Auth Controller - Handles authentication status and user management"""
 
-from functools import wraps
-from flask import Blueprint, request, session, jsonify
-from flask_login import login_required as flask_login_required, current_user
+from flask import Blueprint, jsonify, session
+from flask_login import current_user
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
-def login_required(f):
-    """Custom login decorator that allows 10 free agent interactions before requiring auth"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        # Check if this is an agent interaction endpoint
-        if request.endpoint == 'agent.interact':
-            # Get or initialize interaction count for this session
-            interaction_count = session.get('agent_interactions', 0)
-            
-            if interaction_count < 10:
-                # Allow free access for first 10 interactions
-                session['agent_interactions'] = interaction_count + 1
-                return f(*args, **kwargs)
-            else:
-                # Require authentication after 10 interactions
-                if not current_user.is_authenticated:
-                    return jsonify({'error': 'Authentication required after 10 free interactions'}), 401
-        
-        # For all other endpoints, use standard login requirement
-        return flask_login_required(f)(*args, **kwargs)
-    
-    return decorated_function
-
-@auth_bp.route('/status')
+@auth_bp.route('/status', methods=['GET'])
 def auth_status():
-    """Check authentication status"""
-    return jsonify({
-        'authenticated': current_user.is_authenticated,
-        'user_id': current_user.id if current_user.is_authenticated else None,
-        'agent_interactions': session.get('agent_interactions', 0)
-    })
+    """Get current authentication status"""
+    try:
+        # Get message count from session
+        message_count = session.get('agent_interactions', 0)
+        
+        if current_user.is_authenticated:
+            return jsonify({
+                'authenticated': True,
+                'user_id': current_user.id,
+                'username': current_user.username,
+                'agent_interactions': message_count
+            })
+        else:
+            return jsonify({
+                'authenticated': False,
+                'user_id': None,
+                'agent_interactions': message_count
+            })
+    except Exception as e:
+        return jsonify({
+            'authenticated': False,
+            'user_id': None,
+            'agent_interactions': 0,
+            'error': str(e)
+        }), 500

@@ -8,7 +8,7 @@ from ..presenters.agent_output_presenter import AgentOutputPresenter
 from ...layer3_frameworks.db.session_store import SessionStore
 from datetime import datetime
 
-agent_bp = Blueprint('agent', __name__)
+agent_bp = Blueprint('agent', __name__, url_prefix='/api/agent')
 
 # Initialize services
 session_manager = SessionManager()
@@ -89,7 +89,7 @@ def public_chat():
         }
         return jsonify(agent_presenter.present_agent_response(fallback_response))
 
-@agent_bp.route('/api/agent/interact', methods=['POST'])
+@agent_bp.route('/interact', methods=['POST'])
 @login_required_after_limit
 def interact():
     """Handle agent interactions with login delay logic and session persistence"""
@@ -126,7 +126,7 @@ def interact():
             'error': str(e)
         }), 500
 
-@agent_bp.route('/api/agent/history', methods=['GET'])
+@agent_bp.route('/history', methods=['GET'])
 @login_required
 def get_history():
     """Get conversation history for authenticated user"""
