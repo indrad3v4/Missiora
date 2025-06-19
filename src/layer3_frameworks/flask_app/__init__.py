@@ -73,25 +73,60 @@ def create_app(config_name='default'):
     except ImportError:
         app.logger.warning("Auth controller not available")
     
-    # Register simple API for Vue frontend
-    from .simple_api import simple_api_bp
-    app.register_blueprint(simple_api_bp)
+    # Register Clean Architecture controllers
+    from ...layer2_interfaces.controllers.identity_controller import identity_bp
+    from ...layer2_interfaces.controllers.mission_controller import mission_bp
+    from ...layer2_interfaces.controllers.roadmap_controller import roadmap_bp
+    from ...layer2_interfaces.controllers.agent_controller import agent_bp
     
-    # Add route to launch Gradio CV tools
-    @app.route('/tools/vision')
-    def cv_tools():
-        """Redirect to Gradio CV tools"""
-        return """
-        <!DOCTYPE html>
-        <html><head><title>CV Tools</title></head>
-        <body>
-        <h1>Computer Vision Tools</h1>
-        <p>To launch CV tools, run:</p>
-        <code>python -m src.layer3_frameworks.gradio_app.app</code>
-        <p>Then visit <a href="http://localhost:7860">http://localhost:7860</a></p>
-        </body>
-        </html>
-        """
+    app.register_blueprint(identity_bp)
+    app.register_blueprint(mission_bp)
+    app.register_blueprint(roadmap_bp)
+    app.register_blueprint(agent_bp)
+    
+    # Keep simple API for backward compatibility
+    try:
+        from .simple_api import simple_api_bp
+        app.register_blueprint(simple_api_bp, url_prefix='/api/legacy')
+    except ImportError:
+        pass
+    
+    # Mount Gradio CV tools in Flask process
+    try:
+        import gradio as gr
+        from ..gradio_app.interface import create_cv_interface
+        
+        # Create Gradio interface
+        cv_interface = create_cv_interface()
+        
+        # Mount Gradio app at /tools/vision
+        gradio_app = gr.mount_gradio_app(app, cv_interface, path="/tools/vision")
+        
+        app.logger.info("Gradio CV tools mounted at /tools/vision")
+        
+    except ImportError as e:
+        app.logger.warning(f"Gradio not available: {e}")
+        
+        # Fallback route when Gradio not installed
+        @app.route('/tools/vision')
+        def cv_tools_fallback():
+            """Fallback when Gradio not available"""
+            return """
+            <!DOCTYPE html>
+            <html><head><title>CV Tools</title></head>
+            <body>
+            <h1>Computer Vision Tools</h1>
+            <p>Gradio CV tools not available. Install with:</p>
+            <code>pip install gradio transformers pillow</code>
+            </body>
+            </html>
+            """
+    except Exception as e:
+        app.logger.error(f"Failed to mount Gradio: {e}")
+        
+        @app.route('/tools/vision')
+        def cv_tools_error():
+            return f"CV Tools Error: {str(e)}", 500
     
     # Serve Vue frontend
     vue_dist_path = os.path.join(os.path.dirname(__file__), '..', 'vue_frontend', 'dist')

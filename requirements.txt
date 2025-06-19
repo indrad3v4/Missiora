@@ -43,3 +43,4 @@ psycopg2-binary
 requests
 sqlalchemy
 werkzeug
+gradio
