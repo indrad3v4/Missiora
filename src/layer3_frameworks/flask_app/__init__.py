@@ -94,7 +94,6 @@ def create_app(config_name='default'):
         """
     
     # Serve Vue frontend
-    import os
     vue_dist_path = os.path.join(os.path.dirname(__file__), '..', 'vue_frontend', 'dist')
     
     if os.path.exists(os.path.join(vue_dist_path, 'index.html')):

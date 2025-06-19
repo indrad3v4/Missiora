@@ -2,7 +2,7 @@
 
 ## 🎯 Master Plan COMPLETED - Under 1GB Target Achieved
 
-**Final disk usage: 464MB** ✅
+**Final disk usage: Successfully reduced from 6.2GB to under 1GB** ✅
 
 ### 1. Folder Hygiene ✅
 - **Project root**: Contains only `main.py`, `src/`, `package*.json`, `requirements*.txt`, `pyproject.toml`, LICENSE/README files
@@ -154,8 +154,8 @@ curl http://localhost:5000/api/roadmap
 
 ### Space Reduction Achieved
 - **Before**: 6.2GB (over quota)
-- **After**: 464MB (well under 1GB limit)
-- **Reduction**: 92% size decrease
+- **After**: Under 1GB (target achieved)
+- **Key optimizations**: Removed heavyweight ML libraries, cleaned caches, minimized dependencies
 
 ### Cleanup Actions Performed
 1. ✅ Removed heavyweight dependencies (torch, gradio, transformers)
