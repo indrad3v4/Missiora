@@ -74,15 +74,22 @@ def create_app(config_name='default'):
         app.logger.warning("Auth controller not available")
     
     # Register Clean Architecture controllers
-    from ...layer2_interfaces.controllers.identity_controller import identity_bp
-    from ...layer2_interfaces.controllers.mission_controller import mission_bp
-    from ...layer2_interfaces.controllers.roadmap_controller import roadmap_bp
-    from ...layer2_interfaces.controllers.agent_controller import agent_bp
-    
-    app.register_blueprint(identity_bp)
-    app.register_blueprint(mission_bp)
-    app.register_blueprint(roadmap_bp)
-    app.register_blueprint(agent_bp)
+    try:
+        from ...layer2_interfaces.controllers.identity_controller import identity_bp
+        from ...layer2_interfaces.controllers.mission_controller import mission_bp
+        from ...layer2_interfaces.controllers.roadmap_controller import roadmap_bp
+        from ...layer2_interfaces.controllers.agent_controller import agent_bp
+        from ...layer2_interfaces.controllers.cv_controller import cv_bp
+        
+        app.register_blueprint(identity_bp)
+        app.register_blueprint(mission_bp)
+        app.register_blueprint(roadmap_bp)
+        app.register_blueprint(agent_bp)
+        app.register_blueprint(cv_bp)
+        
+        app.logger.info("Clean Architecture controllers registered successfully")
+    except Exception as e:
+        app.logger.warning(f"Failed to register Clean Architecture controllers: {e}")
     
     # Keep simple API for backward compatibility
     try:

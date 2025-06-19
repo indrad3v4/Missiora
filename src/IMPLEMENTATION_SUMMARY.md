@@ -60,16 +60,18 @@ src/layer3_frameworks/
 - **Registers Clean Architecture controllers** as Flask blueprints
 - **Graceful fallbacks** when optional dependencies unavailable
 
-### Computer Vision Gateway
-- **Lightweight models**: Mock implementations for demo, real models optional
-- **Async interface**: `detect_objects()` and `caption_image()` methods
+### Computer Vision Gateway & Controller
+- **CV Gateway**: Async methods `detect_objects()` and `caption_image()` with mock/real model fallbacks
+- **CV Controller**: REST endpoint `/api/cv/analyse` for image analysis with base64 upload
+- **Camera Integration**: Vue composable `useCamera.js` for frame capture and analysis
 - **Error handling**: Graceful degradation when transformers unavailable
 
 ### Vue Frontend Integration
-- **Data-driven header**: Fetches from `/api/identity`, `/api/mission`, `/api/roadmap`
-- **Tamagotchi UI**: Animated floating AI character with expressions
+- **Pinia Store**: Reactive state management for identity, mission, roadmap, CV results
+- **Data-driven header**: Auto-fetches API data on mount and populates cards
+- **Camera-enabled Tamagotchi**: Click bot to capture frame and get AI caption
 - **Mobile-first design**: No scrolling required, perfect viewport fit
-- **CDN delivery**: Vue 3 and Tailwind via CDN for minimal bundle size
+- **CDN delivery**: Vue 3, Pinia and Tailwind via CDN for minimal bundle size
 
 ## 📊 API Contracts
 
@@ -78,14 +80,17 @@ src/layer3_frameworks/
 - `GET /api/mission` - Mission statement and goals
 - `GET /api/roadmap` - Milestone tracking with progress
 - `POST /api/agent/interact` - AI chat with optional image analysis
+- `POST /api/cv/analyse` - Computer vision analysis of uploaded images
+- `GET /api/cv/status` - CV service health check
 - `GET /tools/vision` - Gradio computer vision interface
 
 ### Data Flow
-1. **Vue Pinia store** calls `fetch('/api/identity')`
-2. **Flask controller** receives request, converts to DTO
-3. **Use case service** processes domain logic (no Flask imports)
-4. **CV Gateway** optionally calls Gradio interface for image analysis
-5. **Response** flows back as JSON to update reactive Vue components
+1. **Vue Pinia store** calls `fetch('/api/identity')` on mount
+2. **Flask controller** receives request, processes via use case layer
+3. **Use case service** handles domain logic (zero framework imports)
+4. **Camera interaction**: User clicks Tamagotchi → capture frame → POST to `/api/cv/analyse`
+5. **CV Gateway** processes image bytes via transformers pipeline or mock
+6. **Response** flows back as JSON to update reactive Vue components
 
 ## ✅ Acceptance Criteria Met
 
@@ -140,6 +145,14 @@ npm install && npm run build
 - **Maintainable**: Clear separation between business logic and frameworks  
 - **Scalable**: Easy to swap Flask for FastAPI or Vue for React
 - **Lightweight**: Core functionality works without heavy ML dependencies
+- **Mobile-ready**: Camera-enabled CV analysis works on mobile browsers
 - **Production-ready**: Single process deployment with integrated CV tools
 
-The implementation successfully demonstrates Uncle Bob's Clean Architecture principles while delivering a functional Tamagotchi-style AI assistant with computer vision capabilities.
+## 📱 Mobile Features
+
+- **Camera Integration**: Tap Tamagotchi to capture and analyze your environment
+- **Responsive Design**: Perfect mobile viewport without scrolling
+- **Progressive Enhancement**: Works with or without camera permissions
+- **Offline Capable**: Core functionality works without CV models
+
+The implementation successfully demonstrates Uncle Bob's Clean Architecture principles while delivering a functional Tamagotchi-style AI assistant with live camera integration and computer vision capabilities.
