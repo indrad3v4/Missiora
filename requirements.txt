@@ -18,3 +18,10 @@ sqlalchemy
 flask-dance
 pyjwt
 openai
+fastapi
+gradio
+pillow
+torch
+torchvision
+transformers
+uvicorn

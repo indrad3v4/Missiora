@@ -77,6 +77,17 @@ def create_app(config_name='default'):
     from .simple_api import simple_api_bp
     app.register_blueprint(simple_api_bp)
     
+    # Mount Gradio CV tools via DispatcherMiddleware
+    from werkzeug.middleware.dispatcher import DispatcherMiddleware
+    try:
+        from ..gradio_app.launcher import create_gradio_app
+        gradio_app = create_gradio_app()
+        app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
+            '/tools/vision': gradio_app
+        })
+    except ImportError as e:
+        app.logger.warning(f"Gradio CV tools not available: {e}")
+    
     # Import legacy routes for compatibility (register with prefix to avoid conflicts)
     from .legacy_routes import legacy_bp
     app.register_blueprint(legacy_bp, url_prefix='/legacy')

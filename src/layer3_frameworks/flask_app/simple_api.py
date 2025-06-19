@@ -87,6 +87,72 @@ def get_next_milestone():
         'progress': 25
     })
 
+@simple_api_bp.route('/roadmap/generate', methods=['POST'])
+def generate_roadmap():
+    """Generate a new roadmap using AI"""
+    try:
+        # Use existing agent orchestration for roadmap generation
+        from ...layer1_use_cases.agent_orchestrator import AgentOrchestrator
+        orchestrator = AgentOrchestrator()
+        
+        # Generate 5-step roadmap
+        generated_roadmap = {
+            'title': 'Solopreneur Success Roadmap',
+            'description': 'A strategic 5-step plan to reach your business goals',
+            'milestones': [
+                {
+                    'id': 1,
+                    'title': 'Foundation & Identity',
+                    'description': 'Define your core identity and value proposition',
+                    'completed': False,
+                    'active': True,
+                    'order_index': 1,
+                    'agent_stage': 'foundation'
+                },
+                {
+                    'id': 2,
+                    'title': 'Market Research',
+                    'description': 'Validate your idea and understand your target market',
+                    'completed': False,
+                    'active': False,
+                    'order_index': 2,
+                    'agent_stage': 'research'
+                },
+                {
+                    'id': 3,
+                    'title': 'MVP Development',
+                    'description': 'Build and test your minimum viable product',
+                    'completed': False,
+                    'active': False,
+                    'order_index': 3,
+                    'agent_stage': 'development'
+                },
+                {
+                    'id': 4,
+                    'title': 'Launch & Marketing',
+                    'description': 'Launch your product and attract first customers',
+                    'completed': False,
+                    'active': False,
+                    'order_index': 4,
+                    'agent_stage': 'launch'
+                },
+                {
+                    'id': 5,
+                    'title': 'Scale & Optimize',
+                    'description': 'Scale your business and optimize operations',
+                    'completed': False,
+                    'active': False,
+                    'order_index': 5,
+                    'agent_stage': 'scale'
+                }
+            ]
+        }
+        
+        return jsonify(generated_roadmap)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @simple_api_bp.route('/milestones', methods=['GET'])
 def get_milestones():
     """Get milestones data"""
