@@ -44,31 +44,31 @@ def create_app(config_name='default'):
     
     # Register blueprints (with error handling for missing dependencies)
     try:
-        from src.layer2_interfaces.controllers.onboarding_controller import onboarding_bp
+        from ...layer2_interfaces.controllers.onboarding_controller import onboarding_bp
         app.register_blueprint(onboarding_bp)
     except ImportError:
         app.logger.warning("Onboarding controller not available")
     
     try:
-        from src.layer2_interfaces.controllers.agent_controller import agent_bp
+        from ...layer2_interfaces.controllers.agent_controller import agent_bp
         app.register_blueprint(agent_bp)
     except ImportError:
         app.logger.warning("Agent controller not available")
         
     try:
-        from src.layer2_interfaces.controllers.milestone_controller import milestone_bp
+        from ...layer2_interfaces.controllers.milestone_controller import milestone_bp
         app.register_blueprint(milestone_bp)
     except ImportError:
         app.logger.warning("Milestone controller not available")
     
     try:
-        from src.layer2_interfaces.controllers.feedback_controller import feedback_bp
+        from ...layer2_interfaces.controllers.feedback_controller import feedback_bp
         app.register_blueprint(feedback_bp)
     except ImportError:
         app.logger.warning("Feedback controller not available")
     
     try:
-        from src.layer2_interfaces.controllers.auth_controller import auth_bp
+        from ...layer2_interfaces.controllers.auth_controller import auth_bp
         app.register_blueprint(auth_bp)
     except ImportError:
         app.logger.warning("Auth controller not available")
@@ -79,7 +79,7 @@ def create_app(config_name='default'):
     
     # Create database tables
     with app.app_context():
-        from src.layer3_frameworks.db.models import User, Conversation, Message, UserGoal, UserInsight, Milestone
+        from ..db.models import User, Conversation, Message, UserGoal, UserInsight, Milestone
         db.create_all()
     
     # Serve Vue SPA for non-API routes
@@ -87,10 +87,10 @@ def create_app(config_name='default'):
     def serve_vue_home():
         """Serve Vue.js SPA home page"""
         import os
-        vue_index = os.path.join(app.root_path, '../../../src/layer3_frameworks/vue_frontend/dist/index.html')
+        vue_index = os.path.join(app.root_path, '../vue_frontend/dist/index.html')
         
         if os.path.exists(vue_index):
-            return app.send_static_file('../../../src/layer3_frameworks/vue_frontend/dist/index.html')
+            return app.send_static_file('../vue_frontend/dist/index.html')
         else:
             # Fallback to legacy routes if Vue build not available
             from flask import redirect, url_for
@@ -98,19 +98,19 @@ def create_app(config_name='default'):
     
     # Import health check and auth blueprints (with error handling)
     try:
-        from src.health_check import health_bp
+        from ..health_check import health_bp
         app.register_blueprint(health_bp, url_prefix="/health")
     except ImportError:
         app.logger.warning("Health check blueprint not available")
         
     try:
-        from src.replit_auth import make_replit_blueprint
+        from ..replit_auth import make_replit_blueprint
         app.register_blueprint(make_replit_blueprint(), url_prefix="/auth")
     except ImportError:
         app.logger.warning("Replit auth blueprint not available")
     
     # User loader
-    from src.layer3_frameworks.db.models import User
+    from ..db.models import User
     
     @login_manager.user_loader
     def load_user(user_id):
