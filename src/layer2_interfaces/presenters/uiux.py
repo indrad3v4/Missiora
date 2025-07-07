@@ -2405,7 +2405,7 @@ const HeaderView = {
                 
                 <div v-if="userData" class="user-data-card">
                     <div class="user-info">
-                        <span class="user-name">{{ userData.name || 'Indradeva' }}</span>
+                        <span class="user-name">{{ userData.name || 'New User' }}</span>
                         <div class="user-details">
                             <span class="goal">🎯 {{ userData.currentGoal || 'Reach €1K' }}</span>
                             <span class="location">📍 {{ userData.location || 'Krakow' }}</span>
@@ -2977,7 +2977,7 @@ const MainApp = {
         return {
             activeTab: 'identity',
             userData: {
-                name: 'Indradeva',
+                name: 'User',
                 currentGoal: 'Reach €1K',
                 location: 'Krakow',
                 timeline: 'Q3 2025',

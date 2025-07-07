@@ -253,6 +253,40 @@
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
+/* AR Mode Styles */
+.ar-mode {
+    background: #000 !important;
+}
+
+.ar-mode .mr-main {
+    display: none !important;
+}
+
+.ar-mode .main-header {
+    background: rgba(0, 0, 0, 0.3) !important;
+    height: 60px !important;
+}
+
+.ar-mode .brand-title {
+    color: #fff !important;
+    font-size: 18px !important;
+}
+
+.ar-mode .user-data-card {
+    display: none !important;
+}
+
+.ar-mode .mr-footer {
+    background: rgba(0, 0, 0, 0.3) !important;
+}
+
+.ar-toggle.active {
+    background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+    color: white !important;
+    transform: scale(1.05) !important;
+    border: 2px solid #fff !important;
+}
+
 .agent-status {
     display: flex;
     flex-direction: column;

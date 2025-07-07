@@ -634,7 +634,7 @@ const MainApp = {
         };
     },
     template: `
-        <div class="mr-app">
+        <div class="mr-app" :class="{ 'ar-mode': arMode }">
             <!-- Agent Canvas -->
             <canvas ref="agentCanvas" class="agent-canvas"></canvas>
             
@@ -709,8 +709,9 @@ const MainApp = {
                     <button 
                         @click="toggleARMode"
                         :class="['nav-tab ar-toggle', { active: arMode }]"
+                        style="background: linear-gradient(135deg, #ff6b6b, #ff8e8e); border: 2px solid #fff; box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);"
                     >
-                        <span class="tab-icon">📷</span>
+                        <span class="tab-icon">{{ arMode ? '❌' : '📷' }}</span>
                         <span class="tab-label">{{ arMode ? 'Exit AR' : 'AR Mode' }}</span>
                     </button>
                 </div>
@@ -897,19 +898,29 @@ const MainApp = {
             this.arMode = !this.arMode;
             
             if (this.arMode) {
+                // Add AR mode class to body
+                document.body.classList.add('ar-mode');
+                document.documentElement.classList.add('ar-mode');
+                
                 // Start camera and show AR overlay
                 if (this.camera) {
                     this.camera.requestCameraAccess();
                 }
-                // Hide main content tabs when in AR mode
+                
+                this.showAgentMessage("🔥 AR Mode Active! Point camera around to explore.", 4000);
                 this.activeTab = null;
             } else {
+                // Remove AR mode class
+                document.body.classList.remove('ar-mode');
+                document.documentElement.classList.remove('ar-mode');
+                
                 // Stop camera and hide AR overlay
                 if (this.camera) {
                     this.camera.stopCamera();
                 }
-                // Restore previous tab or default to identity
-                this.activeTab = this.activeTab || 'identity';
+                
+                this.showAgentMessage("Back to dashboard.", 2000);
+                this.activeTab = 'identity';
             }
         },
         

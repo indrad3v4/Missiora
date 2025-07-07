@@ -15,7 +15,7 @@ def get_identity():
     """Get user identity data"""
     # Mock data for MVP - replace with actual user service
     identity_data = {
-        "name": "Indradeva",
+        "name": current_user.first_name or current_user.username or "User",
         "archetype": "Visionary",
         "completion": 75,
         "location": "Kraków",

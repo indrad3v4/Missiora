@@ -53,7 +53,7 @@ def agent_interact():
 def get_identity():
     """Get identity data"""
     return jsonify({
-        'name': 'Indradeva',
+        'name': 'User',
         'location': 'Kraków',
         'archetype': 'Visionary',
         'completion': 75
