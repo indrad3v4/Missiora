@@ -7,21 +7,36 @@ import { TamagotchiAgent } from './tamagotchi-agent.js';
 import { CameraIntegration } from './camera-integration.js';
 import { AROverlay } from './ar-overlay.js';
 
-// Enhanced Header with Vision Status
+// Enhanced Header with Vision Status and AR Mode
 const HeaderView = {
-    props: ['userData', 'agentCompletion', 'visionStatus'],
+    props: ['userData', 'agentCompletion', 'visionStatus', 'arMode', 'tokenData'],
     template: `
-        <header class="mr-header">
-            <div class="header-content">
+        <header class="mr-header" :class="{ 'ar-mode': arMode, 'minimized': arMode }">
+            <!-- Minimal header for AR mode -->
+            <div v-if="arMode" class="header-content-minimal">
+                <div class="mini-brand">M</div>
+                <div class="mini-user-info">
+                    <span class="mini-name">{{ userData.name || userData.username || 'User' }}</span>
+                    <span class="mini-status">{{ Math.round(agentCompletion) }}%</span>
+                    <span class="mini-tokens">💎 {{ tokenData?.balance || 0 }}</span>
+                </div>
+                <div class="mini-vision-indicator" :class="{ active: visionStatus.active }">
+                    <span class="vision-icon">👁️</span>
+                </div>
+            </div>
+            
+            <!-- Full header for normal mode -->
+            <div v-else class="header-content">
                 <h1 class="brand-title">MISSIORA</h1>
                 
                 <div v-if="userData" class="user-data-card">
                     <div class="user-info">
-                        <span class="user-name">{{ userData.name || 'Indradeva' }}</span>
+                        <span class="user-name">{{ userData.name || userData.username || 'New User' }}</span>
                         <div class="user-details">
-                            <span class="goal">🎯 {{ userData.currentGoal || 'Reach €1K' }}</span>
-                            <span class="location">📍 {{ userData.location || 'Krakow' }}</span>
-                            <span class="timeline">📅 {{ userData.timeline || 'Q3 2025' }}</span>
+                            <span class="goal">🎯 {{ userData.mission?.goal || 'Define your goal' }}</span>
+                            <span class="location">📍 {{ userData.identity?.region || 'Set location' }}</span>
+                            <span class="timeline">📅 {{ userData.identity?.timeline || 'Set timeline' }}</span>
+                            <span class="tokens">💎 {{ tokenData?.balance || 0 }} tokens</span>
                         </div>
                     </div>
                 </div>
@@ -588,12 +603,18 @@ const MainApp = {
     data() {
         return {
             activeTab: 'identity',
+            arMode: false,
             userData: {
-                name: 'Indradeva',
-                currentGoal: 'Reach €1K',
-                location: 'Krakow',
-                timeline: 'Q3 2025',
+                name: '',
+                username: '',
+                identity: null,
+                mission: null,
                 balance: 0
+            },
+            tokenData: {
+                balance: 100,
+                tier: 'free',
+                shouldUpgrade: false
             },
             completionData: {
                 identity: 0,
@@ -628,10 +649,12 @@ const MainApp = {
                 :user-data="userData" 
                 :agent-completion="totalCompletion"
                 :vision-status="visionStatus"
+                :ar-mode="arMode"
+                :token-data="tokenData"
             />
             
             <!-- Main Content -->
-            <main class="mr-main">
+            <main class="mr-main" v-if="!arMode">
                 <IdentityView 
                     v-if="activeTab === 'identity'"
                     @save="onIdentitySaved"
@@ -682,6 +705,14 @@ const MainApp = {
                         <span class="tab-label">Roadmap</span>
                         <div class="completion-dot" :class="{ filled: completionData.roadmap >= 50 }"></div>
                     </button>
+                    
+                    <button 
+                        @click="toggleARMode"
+                        :class="['nav-tab ar-toggle', { active: arMode }]"
+                    >
+                        <span class="tab-icon">📷</span>
+                        <span class="tab-label">{{ arMode ? 'Exit AR' : 'AR Mode' }}</span>
+                    </button>
                 </div>
             </footer>
         </div>
@@ -707,6 +738,7 @@ const MainApp = {
         this.initializeAROverlay();
         this.showAgentWelcome();
         this.setupVisionEventListeners();
+        await this.loadUserData();
         
         window.addEventListener('resize', this.handleResize);
     },
@@ -859,6 +891,104 @@ const MainApp = {
             if (this.agent) {
                 this.agent.handleResize();
             }
+        },
+        
+        toggleARMode() {
+            this.arMode = !this.arMode;
+            
+            if (this.arMode) {
+                // Start camera and show AR overlay
+                if (this.camera) {
+                    this.camera.requestCameraAccess();
+                }
+                // Hide main content tabs when in AR mode
+                this.activeTab = null;
+            } else {
+                // Stop camera and hide AR overlay
+                if (this.camera) {
+                    this.camera.stopCamera();
+                }
+                // Restore previous tab or default to identity
+                this.activeTab = this.activeTab || 'identity';
+            }
+        },
+        
+        async loadUserData() {
+            try {
+                // Load user profile data
+                const profileResponse = await fetch('/api/profile');
+                if (profileResponse.ok) {
+                    const profileData = await profileResponse.json();
+                    this.userData.name = profileData.first_name || profileData.username || 'User';
+                    this.userData.username = profileData.username;
+                }
+                
+                // Load identity data
+                const identityResponse = await fetch('/api/identity');
+                if (identityResponse.ok) {
+                    this.userData.identity = await identityResponse.json();
+                }
+                
+                // Load mission data
+                const missionResponse = await fetch('/api/mission');
+                if (missionResponse.ok) {
+                    this.userData.mission = await missionResponse.json();
+                }
+                
+                // Load token status
+                await this.loadTokenStatus();
+            } catch (error) {
+                console.log('Error loading user data:', error);
+            }
+        },
+        
+        async loadTokenStatus() {
+            try {
+                const response = await fetch('/api/token/status');
+                if (response.ok) {
+                    const data = await response.json();
+                    this.tokenData = data;
+                }
+            } catch (error) {
+                console.log('Error loading token status:', error);
+            }
+        },
+        
+        async consumeTokens(action, model = null) {
+            try {
+                const response = await fetch('/api/token/consume', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ action, model })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    this.tokenData.balance = result.balance;
+                } else if (result.should_upgrade) {
+                    // Show upgrade prompt
+                    this.showUpgradePrompt(result);
+                }
+                
+                return result;
+            } catch (error) {
+                console.log('Error consuming tokens:', error);
+                return { success: false, error: 'network_error' };
+            }
+        },
+        
+        showUpgradePrompt(tokenResult) {
+            this.agentMessage = `You're running low on tokens! Upgrade to continue using advanced features. Current balance: ${tokenResult.balance}`;
+            this.showAgentBubble = true;
+            
+            // TODO: Show upgrade modal with package options
+            
+            setTimeout(() => {
+                this.showAgentBubble = false;
+            }, 8000);
         }
     }
 };

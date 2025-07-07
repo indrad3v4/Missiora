@@ -80,12 +80,14 @@ def create_app(config_name='default'):
         from ...layer2_interfaces.controllers.roadmap_controller import roadmap_bp
         from ...layer2_interfaces.controllers.agent_controller import agent_bp
         from ...layer2_interfaces.controllers.cv_controller import cv_bp
+        from ...layer2_interfaces.controllers.token_controller import token_bp
         
         app.register_blueprint(identity_bp)
         app.register_blueprint(mission_bp)
         app.register_blueprint(roadmap_bp)
         app.register_blueprint(agent_bp)
         app.register_blueprint(cv_bp)
+        app.register_blueprint(token_bp)
         
         app.logger.info("Clean Architecture controllers registered successfully")
     except Exception as e:

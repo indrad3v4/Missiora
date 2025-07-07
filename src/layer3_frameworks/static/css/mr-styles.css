@@ -129,6 +129,78 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.15);
     z-index: 10;
     padding: 20px;
+    transition: all 0.3s ease;
+}
+
+/* Minimized header for AR mode */
+.mr-header.ar-mode {
+    height: 60px;
+    padding: 10px 20px;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+}
+
+.header-content-minimal {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 40px;
+}
+
+.mini-brand {
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #4fd1c7 0%, #06b6d4 100%);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 20px;
+    color: white;
+}
+
+.mini-user-info {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    color: white;
+    font-size: 14px;
+}
+
+.mini-name {
+    font-weight: 600;
+}
+
+.mini-status {
+    background: rgba(255, 255, 255, 0.2);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+}
+
+.mini-tokens {
+    background: linear-gradient(135deg, #4fd1c7 0%, #06b6d4 100%);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.mini-vision-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 16px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 20px;
+    color: white;
+    font-size: 14px;
+}
+
+.mini-vision-indicator.active {
+    background: rgba(79, 209, 199, 0.3);
+    color: #4fd1c7;
 }
 
 .header-content {
@@ -173,6 +245,12 @@
     gap: 4px;
     font-size: 14px;
     opacity: 0.9;
+}
+
+.user-details .tokens {
+    font-weight: 600;
+    color: #4fd1c7;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .agent-status {

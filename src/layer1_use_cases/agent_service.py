@@ -250,38 +250,65 @@ def call_specialized_agent(agent_type, user_message, message_history, context, r
     return response.choices[0].message.content
 
 def combine_agent_responses(agent_responses, user_message, context=""):
-    """Combine multiple agent responses into a cohesive response using contradiction-resolution framework"""
+    """Combine multiple agent responses into a cohesive response using enhanced coherence checking"""
+    # First, check for conflicting advice
+    conflicts = identify_conflicts(agent_responses)
+    
     # Format all agent responses
     responses_text = ""
     for resp in agent_responses:
         responses_text += f"\n\n{resp['agent'].upper()} AGENT RESPONSE:\n{resp['response']}"
     
-    # Create the orchestrator prompt for combining responses with contradiction-resolution framework (more concise)
-    combine_prompt = f"""As the Orchestrator for Kraków solopreneurs, you've received the following responses from specialized agents to address this user query:
+    # Enhanced prompt with conflict awareness
+    combine_prompt = f"""As the Orchestrator for Kraków solopreneurs, synthesize these agent responses:
     
 USER QUERY: {user_message}
 
 {responses_text}
 
-Your task is to synthesize these responses using the contradiction-resolution framework into a CONCISE, EASY-TO-READ format:
+{f"DETECTED CONFLICTS: {conflicts}" if conflicts else ""}
 
-1. Start with a VERY BRIEF summary (1-2 sentences maximum)
-2. Identify 1-2 key tensions between personal authenticity and business requirements 
-3. Provide 2-3 bullet points with practical solutions that honor both sides
-4. End with 1-2 specific action steps relevant to Kraków's business context
+Create a UNIFIED response that:
+1. Resolves any contradictions by finding common ground
+2. Prioritizes advice based on user's current stage
+3. Maintains coherent narrative without conflicting recommendations
+4. Provides clear, actionable guidance
 
-Keep your total response under 200 words, use simple language, and format with bullet points for readability."""
+Format:
+• Main recommendation (1-2 sentences)
+• 2-3 specific action points (no contradictions)
+• Next immediate step
 
-    # Call OpenAI API with reduced token limits
+Keep under 150 words. Ensure all advice aligns."""
+
+    # Call OpenAI API with coherence focus
     response = client.chat.completions.create(
-        model=Config.DEFAULT_AGENT_MODEL,  # the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
+        model=Config.DEFAULT_AGENT_MODEL,
         messages=[
-            {"role": "system", "content": ORCHESTRATOR_PROMPT + "\n\n" + context},
+            {"role": "system", "content": ORCHESTRATOR_PROMPT + "\n\nPriority: Ensure coherent, non-contradictory advice."},
             {"role": "user", "content": combine_prompt}
         ],
-        temperature=0.7,
-        max_tokens=500  # Reduced token limit to prevent errors
+        temperature=0.5,  # Lower temperature for consistency
+        max_tokens=400
     )
     
-    # Extract and return response content
     return response.choices[0].message.content
+
+def identify_conflicts(agent_responses):
+    """Identify potential conflicts between agent responses"""
+    conflicts = []
+    
+    # Simple conflict detection based on common patterns
+    for i, resp1 in enumerate(agent_responses):
+        for j, resp2 in enumerate(agent_responses[i+1:], i+1):
+            # Check for opposing recommendations
+            if ('not' in resp1['response'].lower() and 
+                any(word in resp2['response'].lower() for word in ['should', 'must', 'need to'])):
+                conflicts.append(f"{resp1['agent']} vs {resp2['agent']}: Opposing recommendations")
+            
+            # Check for timeline conflicts
+            if any(time in resp1['response'].lower() for time in ['immediately', 'right now', 'first']) and \
+               any(time in resp2['response'].lower() for time in ['later', 'eventually', 'after']):
+                conflicts.append(f"{resp1['agent']} vs {resp2['agent']}: Timeline disagreement")
+    
+    return conflicts
