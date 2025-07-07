@@ -1,0 +1,255 @@
+Issues
+Potential XSS in chat messages
+
+ChatComponent.js injects unsanitized HTML via v-html, allowing script insertion from user/AI output. Relevant code:
+
+<div class="message-text" v-html="formatMessage(msg.text)"></div>
+where formatMessage performs only simple replacements without escaping HTML
+
+Suggested task
+Escape HTML in chat messages
+
+Start task
+Repository lacks .gitignore
+
+The repo contains generated files such as instance/solopreneur_agency.db but no .gitignore is present
+
+Suggested task
+Add .gitignore for common artifacts
+
+Start task
+No automated tests present
+
+pytest reports 0 tests, making CI ineffective.
+
+Suggested task
+Introduce basic test suite
+
+Start task
+Forms lack CSRF protection
+
+HTML templates submit data without tokens, leaving app vulnerable to CSRF attacks (e.g., profile.html form at lines 14–50)
+
+Suggested task
+Implement CSRF protection
+
+Start task
+🔧 BuildAgent Prompt
+# Inspect current repository
+ls -R
+
+# Create branch
+git checkout -b uiux/v1-lifeline
+
+# 1. Front-end: Vue 3-tab interface
+mkdir -p src/ui/components
+# Convert templates to Vue components
+# Identity view
+cat > src/ui/components/IdentityView.vue <<'EOF'
+<template>
+  <div class="identity-view">
+    <h2>Define Your Identity</h2>
+    <form @submit.prevent="$emit('save', identity)">
+      <input v-model="identity.name" placeholder="Name"/>
+      <input v-model="identity.region" placeholder="Region"/>
+      <textarea v-model="identity.mood" placeholder="Mood"></textarea>
+      <button type="submit">Save</button>
+    </form>
+  </div>
+</template>
+<script setup>
+import { reactive } from 'vue'
+const identity = reactive({ name:'', region:'', mood:'' })
+</script>
+EOF
+
+# Mission view
+cat > src/ui/components/MissionView.vue <<'EOF'
+<template>
+  <div class="mission-view">
+    <h2>Mission Builder</h2>
+    <textarea v-model="mission" placeholder="Describe your highest goal"></textarea>
+    <button @click="$emit('save', mission)">Save</button>
+  </div>
+</template>
+<script setup>
+import { ref } from 'vue'
+const mission = ref('')
+</script>
+EOF
+
+# Roadmap view
+cat > src/ui/components/RoadmapView.vue <<'EOF'
+<template>
+  <div class="roadmap-view">
+    <h2>Roadmap</h2>
+    <div v-for="m in milestones" :key="m.id">
+      <label>
+        <input type="radio" :value="m.id" v-model="activeId"/>
+        {{ m.title }} <span v-if="m.completed">(done)</span>
+      </label>
+    </div>
+    <button @click="$emit('complete', activeId)">Mark complete</button>
+  </div>
+</template>
+<script setup>
+import { ref, defineProps } from 'vue'
+defineProps({ milestones: Array })
+const activeId = ref(null)
+</script>
+EOF
+
+# 2. Back-end: milestone model and orchestration
+sed -n '1,200p' models.py > /tmp/models_head
+grep -q "class Milestone" models.py || cat >> models.py <<'EOF'
+
+class Milestone(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    active = db.Column(db.Boolean, default=False)
+    completed = db.Column(db.Boolean, default=False)
+EOF
+
+# 3. Bootstrap data
+cat > bootstrap_data.py <<'EOF'
+from app import db
+from models import Milestone
+
+def seed():
+    if Milestone.query.count() == 0:
+        db.session.add_all([
+            Milestone(code='define_identity', title='Define Identity', active=True),
+            Milestone(code='build_mission', title='Build Mission'),
+            Milestone(code='design_first_offer', title='Design First Offer')
+        ])
+        db.session.commit()
+
+if __name__ == '__main__':
+    from app import app
+    with app.app_context():
+        seed()
+EOF
+
+# 4. Update orchestrator to include identity/mission
+apply_patch<<'PATCH'
+*** Begin Patch
+*** Update File: agent_service.py
+@@
+-ORCHESTRATOR_PROMPT = \"\"\"
+-You are the **OrchestratorAgent** for Kraków solopreneurs, applying the contradiction-resolution framework to business challenges.
++def build_orchestrator_prompt(identity, mission):
++    base = \"\"\"You are the **OrchestratorAgent** for Kraków solopreneurs,
++applying the contradiction-resolution framework to business challenges.\"\"\"
++    identity_block = f\"\\nIdentity: {identity or ''}\" if identity else ''
++    mission_block = f\"\\nMission: {mission or ''}\" if mission else ''
++    return base + identity_block + mission_block
+*** End Patch
+PATCH
+
+# adapt get_agent_response to read active milestone
+apply_patch<<'PATCH'
+*** Begin Patch
+*** Update File: agent_service.py
+@@
+-def get_agent_response(user_message, message_history=None, user_info=None):
++from models import Milestone
++
++def get_agent_response(user_message, message_history=None, user_info=None):
+@@
+-        context = create_context(user_info)
++        context = create_context(user_info)
++        active = Milestone.query.filter_by(active=True, completed=False).first()
++        prompt = build_orchestrator_prompt(
++            user_info.get('identity') if user_info else None,
++            user_info.get('mission') if user_info else None)
+*** End Patch
+PATCH
+
+# 5. Routes for new views and saving data
+apply_patch<<'PATCH'
+*** Begin Patch
+*** Update File: routes.py
+@@
+ @app.route('/')
+-def index():
+-    # Redirect to the new narrative chat experience
+-    return redirect(url_for('narrative_chat'))
++def index():
++    return render_template('index.html')
++
++@app.route('/identity', methods=['GET','POST'])
++def identity():
++    if request.method == 'POST':
++        current_user.identity = request.json.get('identity')
++        db.session.commit()
++        return '',204
++    return render_template('index.html')
++
++@app.route('/mission', methods=['POST'])
++def mission():
++    current_user.mission = request.json.get('mission')
++    db.session.commit()
++    return '',204
++
++@app.route('/roadmap')
++def roadmap():
++    milestones = Milestone.query.all()
++    return render_template('index.html', milestones=milestones)
+*** End Patch
+PATCH
+
+# 6. Ensure components served
+grep -q "vue-build.js" static/js/vue-app.js || cat >> static/js/vue-app.js <<'EOF'
+
+import IdentityView from '/src/ui/components/IdentityView.vue'
+import MissionView from '/src/ui/components/MissionView.vue'
+import RoadmapView from '/src/ui/components/RoadmapView.vue'
+
+createApp({
+  components:{IdentityView,MissionView,RoadmapView},
+  data(){return{tab:'Identity', milestones:[]}},
+  mounted(){
+    fetch('/roadmap').then(r=>r.json()).then(data=>{this.milestones=data})
+  },
+  template:`
+    <header>{{ tab }}</header>
+    <IdentityView v-if="tab==='Identity'" @save="saveIdentity"/>
+    <MissionView v-if="tab==='Mission'" @save="saveMission"/>
+    <RoadmapView v-if="tab==='Roadmap'" :milestones="milestones" @complete="complete"/>
+    <footer>
+      <button @click="tab='Identity'">Identity</button>
+      <button @click="tab='Mission'">Mission</button>
+      <button @click="tab='Roadmap'">Roadmap</button>
+    </footer>
+  `,
+  methods:{
+    saveIdentity(data){fetch('/identity',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identity:data})})},
+    saveMission(text){fetch('/mission',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mission:text})})},
+    complete(id){fetch('/milestone/'+id+'/complete',{method:'POST'}).then(()=>location.reload())}
+  }
+}).mount('#app')
+EOF
+
+# 7. Seed starter milestones
+python bootstrap_data.py
+
+# 8. Run tests
+pytest -q
+
+# 9. Commit and push
+git status --short
+git add .
+git commit -m "feat(uiux): implement 3-tab Highest-Goal interface"
+git push origin uiux/v1-lifeline
+
+# 10. Open PR
+gh pr create -t "feat(uiux): implement 3-tab Highest-Goal interface" -b "Implements Identity/Mission/Roadmap UI and milestone-based orchestration." -a indrad3v4 -B main
+Proposed GitHub Issues
+Create Vue Identity/Mission/Roadmap components – convert Jinja templates and wire up new navigation. label: ux_v1
+
+Add milestone model and bootstrap data – include seeding script and active milestone logic in orchestrator. label: ux_v1
+
+Update routes and API for identity & mission storage – ensure data saved/loaded with SQLite. label: ux_v1
+
+Implement basic pytest suite & migration test – verify milestone table and routes work. label: ux_v1

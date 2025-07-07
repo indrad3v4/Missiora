@@ -1,1 +1,0 @@
-"""Missiora Clean Architecture Source Package"""

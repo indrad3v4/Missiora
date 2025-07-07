@@ -1,1 +1,0 @@
-"""Gradio CV Tools Application"""
