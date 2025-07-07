@@ -6,38 +6,82 @@
 import { TamagotchiAgent } from './tamagotchi-agent.js';
 import { CameraIntegration } from './camera-integration.js';
 import { AROverlay } from './ar-overlay.js';
+import { TokenTracker } from './token-tracker.js';
 
-// Enhanced Header with Vision Status
+// Enhanced Header with AR Toggle and Collapsible Design
 const HeaderView = {
-    props: ['userData', 'agentCompletion', 'visionStatus'],
+    props: ['userData', 'agentCompletion', 'visionStatus', 'isArMode'],
+    emits: ['toggle-ar', 'toggle-collapse'],
+    data() {
+        return {
+            isCollapsed: false,
+            showPersonaCard: true
+        };
+    },
     template: `
-        <header class="mr-header">
+        <header class="mr-header" :class="{ 'collapsed': isCollapsed || isArMode, 'ar-mode': isArMode }">
             <div class="header-content">
-                <h1 class="brand-title">MISSIORA</h1>
-                
-                <div v-if="userData" class="user-data-card">
-                    <div class="user-info">
-                        <span class="user-name">{{ userData.name || 'Indradeva' }}</span>
-                        <div class="user-details">
-                            <span class="goal">🎯 {{ userData.currentGoal || 'Reach €1K' }}</span>
-                            <span class="location">📍 {{ userData.location || 'Krakow' }}</span>
-                            <span class="timeline">📅 {{ userData.timeline || 'Q3 2025' }}</span>
+                <div class="header-row">
+                    <div class="brand-section">
+                        <h1 class="brand-title">MISSIORA</h1>
+                        <button 
+                            class="ar-toggle-btn" 
+                            :class="{ active: isArMode }"
+                            @click="$emit('toggle-ar')"
+                            title="Toggle AR Mode"
+                        >
+                            <span class="ar-icon">👁️</span>
+                            <span class="ar-label">{{ isArMode ? 'EXIT AR' : 'AR MODE' }}</span>
+                        </button>
+                    </div>
+                    
+                    <div class="status-section">
+                        <div class="completion-ring" :style="completionRingStyle">
+                            <span class="completion-text">{{ Math.round(agentCompletion) }}%</span>
                         </div>
+                        <div class="vision-indicator" :class="{ active: visionStatus.active }">
+                            <span class="vision-icon">👁️</span>
+                            <span class="vision-status">{{ visionStatus.active ? 'Seeing' : 'Offline' }}</span>
+                        </div>
+                        <button 
+                            class="collapse-btn" 
+                            @click="toggleCollapse"
+                            v-if="!isArMode"
+                            title="Collapse Header"
+                        >
+                            <span :class="isCollapsed ? 'expand-icon' : 'collapse-icon'">{{ isCollapsed ? '▼' : '▲' }}</span>
+                        </button>
                     </div>
                 </div>
                 
-                <div class="agent-status">
-                    <div class="completion-ring" :style="completionRingStyle">
-                        <span class="completion-text">{{ Math.round(agentCompletion) }}%</span>
-                    </div>
-                    <div class="vision-indicator" :class="{ active: visionStatus.active }">
-                        <span class="vision-icon">👁️</span>
-                        <span class="vision-status">{{ visionStatus.active ? 'Seeing' : 'Offline' }}</span>
+                <div class="persona-card" v-if="userData && showPersonaCard && !isCollapsed && !isArMode">
+                    <div class="persona-info">
+                        <div class="persona-avatar">
+                            <span class="persona-initials">{{ getInitials(userData.name) }}</span>
+                        </div>
+                        <div class="persona-details">
+                            <h3 class="persona-name">{{ userData.name || 'Indradeva' }}</h3>
+                            <div class="persona-tags">
+                                <span class="tag goal">🎯 {{ userData.currentGoal || 'Reach €1K' }}</span>
+                                <span class="tag location">📍 {{ userData.location || 'Krakow' }}</span>
+                                <span class="tag timeline">📅 {{ userData.timeline || 'Q3 2025' }}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </header>
     `,
+    methods: {
+        toggleCollapse() {
+            this.isCollapsed = !this.isCollapsed;
+            this.$emit('toggle-collapse', this.isCollapsed);
+        },
+        getInitials(name) {
+            if (!name) return 'IN';
+            return name.split(' ').map(n => n[0]).join('').toUpperCase();
+        }
+    },
     computed: {
         completionRingStyle() {
             const percentage = this.agentCompletion || 0;
@@ -608,8 +652,13 @@ const MainApp = {
             agent: null,
             camera: null,
             arOverlay: null,
+            tokenTracker: null,
             agentMessage: '',
-            showAgentBubble: false
+            showAgentBubble: false,
+            isArMode: false,
+            headerCollapsed: false,
+            pendingAgentResponses: new Map(),
+            agentResponseDebounce: null
         };
     },
     template: `
@@ -628,6 +677,9 @@ const MainApp = {
                 :user-data="userData" 
                 :agent-completion="totalCompletion"
                 :vision-status="visionStatus"
+                :is-ar-mode="isArMode"
+                @toggle-ar="toggleArMode"
+                @toggle-collapse="onHeaderCollapse"
             />
             
             <!-- Main Content -->
@@ -705,6 +757,7 @@ const MainApp = {
         this.initializeCamera();
         this.initializeAgent();
         this.initializeAROverlay();
+        this.initializeTokenTracker();
         this.showAgentWelcome();
         this.setupVisionEventListeners();
         
@@ -719,6 +772,9 @@ const MainApp = {
         }
         if (this.arOverlay) {
             this.arOverlay.destroy();
+        }
+        if (this.tokenTracker) {
+            this.tokenTracker.destroy();
         }
         window.removeEventListener('resize', this.handleResize);
     },
@@ -853,6 +909,95 @@ const MainApp = {
                     this.switchTab('roadmap');
                 }, 1500);
             }
+        },
+        
+        initializeTokenTracker() {
+            this.tokenTracker = new TokenTracker();
+            
+            // Track API calls for token usage
+            this.tokenTracker.onBalanceUpdate = (balance, cost, source) => {
+                this.userData.balance = balance;
+                if (balance <= 0) {
+                    this.showAgentMessage("⚠️ Token balance low! Add more to continue using AI features.");
+                }
+            };
+        },
+        
+        toggleArMode() {
+            this.isArMode = !this.isArMode;
+            
+            if (this.isArMode) {
+                document.body.classList.add('ar-mode');
+                this.showAgentMessage("AR mode activated! Point your camera at objects for smart insights.");
+            } else {
+                document.body.classList.remove('ar-mode');
+                this.showAgentMessage("AR mode deactivated. Continuing with normal view.");
+            }
+            
+            // Update camera visibility
+            if (this.camera) {
+                if (this.isArMode) {
+                    this.camera.adjustBrightness(0.65);
+                } else {
+                    this.camera.adjustBrightness(0.1);
+                }
+            }
+        },
+        
+        onHeaderCollapse(collapsed) {
+            this.headerCollapsed = collapsed;
+            if (this.agent) {
+                this.agent.adjustForHeaderCollapse(collapsed);
+            }
+        },
+        
+        // Enhanced agent response consolidation to fix multi-agent conflicts
+        async getConsolidatedAgentResponse(userMessage, context) {
+            // Clear any pending responses
+            if (this.agentResponseDebounce) {
+                clearTimeout(this.agentResponseDebounce);
+            }
+            
+            // Generate unique request ID
+            const requestId = Date.now() + Math.random();
+            
+            // Debounce multiple rapid requests
+            return new Promise((resolve) => {
+                this.agentResponseDebounce = setTimeout(async () => {
+                    try {
+                        // Track token usage
+                        window.dispatchEvent(new CustomEvent('api:call-started', {
+                            detail: { inputTokens: userMessage.length * 1.3, outputTokens: 800 }
+                        }));
+                        
+                        const response = await fetch('/api/chat', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                message: userMessage,
+                                context: context,
+                                requestId: requestId
+                            })
+                        });
+                        
+                        if (response.ok) {
+                            const result = await response.json();
+                            
+                            // Track response generation
+                            window.dispatchEvent(new CustomEvent('agent:response-generated', {
+                                detail: { messageLength: result.reply.length }
+                            }));
+                            
+                            resolve(result);
+                        } else {
+                            resolve({ reply: "I'm having trouble processing that right now. Please try again." });
+                        }
+                    } catch (error) {
+                        console.error('Agent response error:', error);
+                        resolve({ reply: "I encountered an error. Please try again." });
+                    }
+                }, 300); // 300ms debounce
+            });
         },
         
         handleResize() {
