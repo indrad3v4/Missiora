@@ -1003,11 +1003,14 @@ def analyze_vision():
         
     except Exception as e:
         print(f"Vision analysis error: {e}")
-        return jsonify({
-            'error': 'Vision analysis failed',
-            'objects': [],
-            'scene_description': 'Analysis unavailable'
-        }), 500
+        # TRIZ Solution: Use free vision engine instead of OpenAI
+        from vision_engine import vision_engine
+        
+        # Generate fallback analysis using free engine
+        fallback_result = vision_engine.analyze_image(data.get('image', ''), data.get('timestamp'))
+        print(f"✓ Fallback vision analysis: {fallback_result.get('token_cost', 0.05)} tokens")
+        
+        return jsonify(fallback_result)
 
 @app.route('/api/vision/action', methods=['POST'])
 def execute_vision_action():
