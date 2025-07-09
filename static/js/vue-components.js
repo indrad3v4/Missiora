@@ -95,7 +95,155 @@ const HeaderView = {
     }
 };
 
-// Enhanced Identity View with Vision Guidance
+// Export the main app component properly
+export const MainApp = {
+    template: `
+        <div class="mr-main">
+            <div class="mr-header">
+                <HeaderView 
+                    :user-data="userData"
+                    @toggle-camera="toggleCamera"
+                />
+            </div>
+            
+            <div class="mr-content">
+                <div class="mr-views">
+                    <IdentityView 
+                        v-if="activeView === 'identity'"
+                        :key="viewKey"
+                        @save="onIdentitySaved"
+                        @update-header="updateHeader"
+                    />
+                    <MissionView 
+                        v-if="activeView === 'mission'"
+                        :key="viewKey"
+                        @save="onMissionSaved"
+                        @update-header="updateHeader"
+                    />
+                    <RoadmapView 
+                        v-if="activeView === 'roadmap'"
+                        :key="viewKey"
+                        @save="onRoadmapSaved"
+                        @update-header="updateHeader"
+                    />
+                </div>
+            </div>
+            
+            <div class="mr-footer">
+                <div class="view-tabs">
+                    <button 
+                        :class="{ active: activeView === 'identity' }"
+                        @click="setActiveView('identity')"
+                    >
+                        Identity
+                    </button>
+                    <button 
+                        :class="{ active: activeView === 'mission' }"
+                        @click="setActiveView('mission')"
+                    >
+                        Mission
+                    </button>
+                    <button 
+                        :class="{ active: activeView === 'roadmap' }"
+                        @click="setActiveView('roadmap')"
+                    >
+                        Roadmap
+                    </button>
+                </div>
+            </div>
+        </div>
+    `,
+    
+    data() {
+        return {
+            activeView: 'identity',
+            viewKey: 1,
+            userData: {
+                name: 'Loading...',
+                currentGoal: 'Loading...',
+                location: 'Loading...'
+            },
+            cameraIntegration: null,
+            arOverlay: null
+        }
+    },
+    
+    async mounted() {
+        try {
+            await this.initializeVision();
+            await this.loadUserData();
+        } catch (error) {
+            console.error('App initialization error:', error);
+            // Continue loading even if vision fails
+            await this.loadUserData();
+        }
+    },
+    
+    methods: {
+        async initializeVision() {
+            try {
+                // Import vision modules dynamically
+                const [CameraModule, ARModule] = await Promise.all([
+                    import('/static/js/camera-integration.js'),
+                    import('/static/js/ar-overlay.js')
+                ]);
+                
+                this.cameraIntegration = new CameraModule.CameraIntegration();
+                this.arOverlay = new ARModule.AROverlay();
+            } catch (error) {
+                console.warn('Vision system not available:', error);
+            }
+        },
+        
+        async loadUserData() {
+            try {
+                const response = await fetch('/api/user-data');
+                if (response.ok) {
+                    this.userData = await response.json();
+                }
+            } catch (error) {
+                console.error('Failed to load user data:', error);
+            }
+        },
+        
+        setActiveView(view) {
+            this.activeView = view;
+            this.viewKey++;
+        },
+        
+        toggleCamera() {
+            if (this.cameraIntegration) {
+                this.cameraIntegration.toggleCamera();
+            }
+        },
+        
+        updateHeader(data) {
+            Object.assign(this.userData, data);
+        },
+        
+        onIdentitySaved() {
+            this.updateHeader({ name: 'Identity Complete' });
+        },
+        
+        onMissionSaved() {
+            this.updateHeader({ currentGoal: 'Mission Set' });
+        },
+        
+        onRoadmapSaved() {
+            this.updateHeader({ currentGoal: 'Roadmap Ready' });
+        }
+    },
+    
+    components: {
+        HeaderView,
+        IdentityView, 
+        MissionView,
+        RoadmapView
+    }
+};
+
+// Export all components
+export { HeaderView, IdentityView, MissionView, RoadmapView };ity View with Vision Guidance
 const IdentityView = {
     emits: ['save', 'update-header', 'completion-change'],
     data() {
