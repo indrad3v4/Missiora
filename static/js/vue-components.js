@@ -7,6 +7,7 @@ import { TamagotchiAgent } from './tamagotchi-agent.js';
 import { CameraIntegration } from './camera-integration.js';
 import { AROverlay } from './ar-overlay.js';
 import { TokenTracker } from './token-tracker.js';
+import './hud-card.js';
 
 // Enhanced Header with AR Toggle and Collapsible Design
 const HeaderView = {
@@ -250,6 +251,19 @@ const IdentityView = {
                 });
                 
                 if (response.ok) {
+                    // Emit HUD card event for progressive disclosure
+                    const event = new CustomEvent('identity-completed', {
+                        detail: {
+                            name: this.identity.name,
+                            place: this.identity.region,
+                            archetype: this.identity.archetype,
+                            mood: this.identity.mood,
+                            field: this.identity.field,
+                            title: this.identity.selfTitle
+                        }
+                    });
+                    document.dispatchEvent(event);
+                    
                     this.$emit('save', this.identity);
                     this.$emit('update-header', {
                         name: this.identity.name,
@@ -434,6 +448,16 @@ const MissionView = {
                 });
                 
                 if (response.ok) {
+                    // Emit HUD card event for progressive disclosure
+                    const event = new CustomEvent('mission-completed', {
+                        detail: {
+                            goal: this.mission.goal,
+                            timeline: this.mission.timeline,
+                            targetIncome: this.mission.goal.match(/€(\d+)/)?.[1] || '1000'
+                        }
+                    });
+                    document.dispatchEvent(event);
+                    
                     this.$emit('save', this.mission);
                     this.$emit('update-header', {
                         currentGoal: this.mission.goal,
@@ -627,7 +651,8 @@ const MainApp = {
         HeaderView,
         IdentityView, 
         MissionView,
-        RoadmapView
+        RoadmapView,
+        HUDCard
     },
     data() {
         return {
@@ -665,6 +690,9 @@ const MainApp = {
         <div class="mr-app">
             <!-- Agent Canvas -->
             <canvas ref="agentCanvas" class="agent-canvas"></canvas>
+            
+            <!-- TRIZ-Structured HUD Card System -->
+            <HUDCard />
             
             <!-- Agent Speech Bubble -->
             <div v-if="showAgentBubble" class="agent-speech-bubble" :class="agentBubblePosition">
