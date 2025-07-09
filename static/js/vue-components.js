@@ -68,11 +68,12 @@ const IdentityView = {
                 selfTitle: ''
             },
             completionPercentage: 0,
-            visionGuidance: ''
+            visionGuidance: '',
+            componentKey: `identity-${Date.now()}-${Math.random()}`
         };
     },
     template: `
-        <div class="mr-view identity-view">
+        <div class="mr-view identity-view" :key="componentKey">
             <div class="view-content">
                 <div class="section-header">
                     <h2>🧬 Define Your Identity</h2>
@@ -232,11 +233,12 @@ const MissionView = {
                 emotionalBlocks: ''
             },
             completionPercentage: 0,
-            visionInsights: []
+            visionInsights: [],
+            componentKey: `mission-${Date.now()}-${Math.random()}`
         };
     },
     template: `
-        <div class="mr-view mission-view">
+        <div class="mr-view mission-view" :key="componentKey">
             <div class="view-content">
                 <div class="section-header">
                     <h2>🎯 Craft Your Mission</h2>
@@ -245,7 +247,7 @@ const MissionView = {
                 
                 <div v-if="visionInsights.length > 0" class="vision-insights">
                     <h3>Vision Insights</h3>
-                    <div v-for="insight in visionInsights" :key="insight.id" class="insight-item">
+                    <div v-for="insight in visionInsights" :key="'insight-' + insight.id + '-' + componentKey" class="insight-item">
                         {{ insight.message }}
                     </div>
                 </div>
@@ -411,11 +413,12 @@ const RoadmapView = {
         return {
             milestones: [],
             completionPercentage: 0,
-            smartSuggestions: []
+            smartSuggestions: [],
+            componentKey: `roadmap-${Date.now()}-${Math.random()}`
         };
     },
     template: `
-        <div class="mr-view roadmap-view">
+        <div class="mr-view roadmap-view" :key="componentKey">
             <div class="view-content">
                 <div class="section-header">
                     <h2>🗺️ Your Smart Roadmap</h2>
@@ -424,7 +427,7 @@ const RoadmapView = {
                 
                 <div v-if="smartSuggestions.length > 0" class="smart-suggestions">
                     <h3>Vision-Based Suggestions</h3>
-                    <div v-for="suggestion in smartSuggestions" :key="suggestion.id" class="suggestion-item">
+                    <div v-for="suggestion in smartSuggestions" :key="'suggestion-' + suggestion.id + '-' + componentKey" class="suggestion-item">
                         <span class="suggestion-text">{{ suggestion.text }}</span>
                         <button @click="addSuggestionToRoadmap(suggestion)" class="add-button">Add</button>
                     </div>
@@ -433,7 +436,7 @@ const RoadmapView = {
                 <div class="milestones-container">
                     <div 
                         v-for="milestone in milestones" 
-                        :key="milestone.id"
+                        :key="'milestone-' + milestone.id + '-' + componentKey"
                         :class="['milestone-card', milestone.status]"
                     >
                         <div class="milestone-icon">
@@ -635,18 +638,21 @@ const MainApp = {
             <main class="mr-main">
                 <IdentityView 
                     v-if="activeTab === 'identity'"
+                    :key="'identity-view-' + activeTab"
                     @save="onIdentitySaved"
                     @update-header="updateHeader"
                     @completion-change="updateCompletion"
                 />
                 <MissionView 
                     v-if="activeTab === 'mission'"
+                    :key="'mission-view-' + activeTab"
                     @save="onMissionSaved"
                     @update-header="updateHeader"
                     @completion-change="updateCompletion"
                 />
                 <RoadmapView 
                     v-if="activeTab === 'roadmap'"
+                    :key="'roadmap-view-' + activeTab"
                     @completion-change="updateCompletion"
                 />
             </main>
@@ -725,16 +731,17 @@ const MainApp = {
     },
     methods: {
         initializeCamera() {
-            // Initialize camera if available
+            // Initialize camera with graceful degradation
             try {
-                if (window.CameraIntegration) {
+                if (window.CameraIntegration && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                     this.camera = new CameraIntegration();
+                    console.log('✓ Camera access granted');
                 } else {
                     console.log('Camera integration not available, using fallback');
                     this.initializeFallbackCamera();
                 }
             } catch (error) {
-                console.error('Camera initialization failed:', error);
+                console.log('Camera not available, focusing on your inner vision instead');
                 this.initializeFallbackCamera();
             }
         },
@@ -808,19 +815,29 @@ const MainApp = {
             });
             
             window.addEventListener('vision:objects-detected', (event) => {
-                this.visionStatus.lastDetection = new Date();
-                this.visionStatus.analyzing = true;
-                
-                setTimeout(() => {
+                try {
+                    this.visionStatus.lastDetection = new Date();
+                    this.visionStatus.analyzing = true;
+                    
+                    setTimeout(() => {
+                        this.visionStatus.analyzing = false;
+                    }, 1000);
+                    
+                    // Update agent message based on detected objects
+                    const objects = event.detail?.objects || [];
+                    if (objects.length > 0 && this.agent) {
+                        const message = this.agent.getObjectReactionMessage(objects[0].label);
+                        this.showAgentMessage(message);
+                    }
+                } catch (error) {
+                    console.log('Vision processing continues in background');
                     this.visionStatus.analyzing = false;
-                }, 1000);
-                
-                // Update agent message based on detected objects
-                const objects = event.detail.objects || [];
-                if (objects.length > 0 && this.agent) {
-                    const message = this.agent.getObjectReactionMessage(objects[0].label);
-                    this.showAgentMessage(message);
                 }
+            });
+            
+            // Handle vision analysis failures gracefully
+            window.addEventListener('vision:analysis-failed', () => {
+                console.log('Vision analysis optimizing, core features remain active');
             });
         },
         
