@@ -3,83 +3,41 @@
  * Mixed Reality Tamagotchi Experience with See→Think→Act capabilities
  */
 
-// Browser-compatible version without ES6 imports
-// Dependencies will be loaded via script tags in the HTML
+import { TamagotchiAgent } from './tamagotchi-agent.js';
+import { CameraIntegration } from './camera-integration.js';
+import { AROverlay } from './ar-overlay.js';
 
-// Enhanced Header with AR Toggle and Collapsible Design
+// Enhanced Header with Vision Status
 const HeaderView = {
-    props: ['userData', 'agentCompletion', 'visionStatus', 'isArMode'],
-    emits: ['toggle-ar', 'toggle-collapse'],
-    data() {
-        return {
-            isCollapsed: false,
-            showPersonaCard: true
-        };
-    },
+    props: ['userData', 'agentCompletion', 'visionStatus'],
     template: `
-        <header class="mr-header" :class="{ 'collapsed': isCollapsed || isArMode, 'ar-mode': isArMode }">
+        <header class="mr-header">
             <div class="header-content">
-                <div class="header-row">
-                    <div class="brand-section">
-                        <h1 class="brand-title">MISSIORA</h1>
-                        <button 
-                            class="ar-toggle-btn" 
-                            :class="{ active: isArMode }"
-                            @click="$emit('toggle-ar')"
-                            title="Toggle AR Mode"
-                        >
-                            <span class="ar-icon">👁️</span>
-                            <span class="ar-label">{{ isArMode ? 'EXIT AR' : 'AR MODE' }}</span>
-                        </button>
-                    </div>
-                    
-                    <div class="status-section">
-                        <div class="completion-ring" :style="completionRingStyle">
-                            <span class="completion-text">{{ Math.round(agentCompletion) }}%</span>
+                <h1 class="brand-title">MISSIORA</h1>
+                
+                <div v-if="userData" class="user-data-card">
+                    <div class="user-info">
+                        <span class="user-name">{{ userData.name || 'Indradeva' }}</span>
+                        <div class="user-details">
+                            <span class="goal">🎯 {{ userData.currentGoal || 'Reach €1K' }}</span>
+                            <span class="location">📍 {{ userData.location || 'Krakow' }}</span>
+                            <span class="timeline">📅 {{ userData.timeline || 'Q3 2025' }}</span>
                         </div>
-                        <div class="vision-indicator" :class="{ active: visionStatus.active }">
-                            <span class="vision-icon">👁️</span>
-                            <span class="vision-status">{{ visionStatus.active ? 'Seeing' : 'Offline' }}</span>
-                        </div>
-                        <button 
-                            class="collapse-btn" 
-                            @click="toggleCollapse"
-                            v-if="!isArMode"
-                            title="Collapse Header"
-                        >
-                            <span :class="isCollapsed ? 'expand-icon' : 'collapse-icon'">{{ isCollapsed ? '▼' : '▲' }}</span>
-                        </button>
                     </div>
                 </div>
                 
-                <div class="persona-card" v-if="userData && showPersonaCard && !isCollapsed && !isArMode">
-                    <div class="persona-info">
-                        <div class="persona-avatar">
-                            <span class="persona-initials">{{ getInitials(userData.name) }}</span>
-                        </div>
-                        <div class="persona-details">
-                            <h3 class="persona-name">{{ userData.name || 'Indradeva' }}</h3>
-                            <div class="persona-tags">
-                                <span class="tag goal">🎯 {{ userData.currentGoal || 'Reach €1K' }}</span>
-                                <span class="tag location">📍 {{ userData.location || 'Krakow' }}</span>
-                                <span class="tag timeline">📅 {{ userData.timeline || 'Q3 2025' }}</span>
-                            </div>
-                        </div>
+                <div class="agent-status">
+                    <div class="completion-ring" :style="completionRingStyle">
+                        <span class="completion-text">{{ Math.round(agentCompletion) }}%</span>
+                    </div>
+                    <div class="vision-indicator" :class="{ active: visionStatus.active }">
+                        <span class="vision-icon">👁️</span>
+                        <span class="vision-status">{{ visionStatus.active ? 'Seeing' : 'Offline' }}</span>
                     </div>
                 </div>
             </div>
         </header>
     `,
-    methods: {
-        toggleCollapse() {
-            this.isCollapsed = !this.isCollapsed;
-            this.$emit('toggle-collapse', this.isCollapsed);
-        },
-        getInitials(name) {
-            if (!name) return 'IN';
-            return name.split(' ').map(n => n[0]).join('').toUpperCase();
-        }
-    },
     computed: {
         completionRingStyle() {
             const percentage = this.agentCompletion || 0;
@@ -95,155 +53,7 @@ const HeaderView = {
     }
 };
 
-// Export the main app component properly
-export const MainApp = {
-    template: `
-        <div class="mr-main">
-            <div class="mr-header">
-                <HeaderView 
-                    :user-data="userData"
-                    @toggle-camera="toggleCamera"
-                />
-            </div>
-            
-            <div class="mr-content">
-                <div class="mr-views">
-                    <IdentityView 
-                        v-if="activeView === 'identity'"
-                        :key="viewKey"
-                        @save="onIdentitySaved"
-                        @update-header="updateHeader"
-                    />
-                    <MissionView 
-                        v-if="activeView === 'mission'"
-                        :key="viewKey"
-                        @save="onMissionSaved"
-                        @update-header="updateHeader"
-                    />
-                    <RoadmapView 
-                        v-if="activeView === 'roadmap'"
-                        :key="viewKey"
-                        @save="onRoadmapSaved"
-                        @update-header="updateHeader"
-                    />
-                </div>
-            </div>
-            
-            <div class="mr-footer">
-                <div class="view-tabs">
-                    <button 
-                        :class="{ active: activeView === 'identity' }"
-                        @click="setActiveView('identity')"
-                    >
-                        Identity
-                    </button>
-                    <button 
-                        :class="{ active: activeView === 'mission' }"
-                        @click="setActiveView('mission')"
-                    >
-                        Mission
-                    </button>
-                    <button 
-                        :class="{ active: activeView === 'roadmap' }"
-                        @click="setActiveView('roadmap')"
-                    >
-                        Roadmap
-                    </button>
-                </div>
-            </div>
-        </div>
-    `,
-    
-    data() {
-        return {
-            activeView: 'identity',
-            viewKey: 1,
-            userData: {
-                name: 'Loading...',
-                currentGoal: 'Loading...',
-                location: 'Loading...'
-            },
-            cameraIntegration: null,
-            arOverlay: null
-        }
-    },
-    
-    async mounted() {
-        try {
-            await this.initializeVision();
-            await this.loadUserData();
-        } catch (error) {
-            console.error('App initialization error:', error);
-            // Continue loading even if vision fails
-            await this.loadUserData();
-        }
-    },
-    
-    methods: {
-        async initializeVision() {
-            try {
-                // Import vision modules dynamically
-                const [CameraModule, ARModule] = await Promise.all([
-                    import('/static/js/camera-integration.js'),
-                    import('/static/js/ar-overlay.js')
-                ]);
-                
-                this.cameraIntegration = new CameraModule.CameraIntegration();
-                this.arOverlay = new ARModule.AROverlay();
-            } catch (error) {
-                console.warn('Vision system not available:', error);
-            }
-        },
-        
-        async loadUserData() {
-            try {
-                const response = await fetch('/api/user-data');
-                if (response.ok) {
-                    this.userData = await response.json();
-                }
-            } catch (error) {
-                console.error('Failed to load user data:', error);
-            }
-        },
-        
-        setActiveView(view) {
-            this.activeView = view;
-            this.viewKey++;
-        },
-        
-        toggleCamera() {
-            if (this.cameraIntegration) {
-                this.cameraIntegration.toggleCamera();
-            }
-        },
-        
-        updateHeader(data) {
-            Object.assign(this.userData, data);
-        },
-        
-        onIdentitySaved() {
-            this.updateHeader({ name: 'Identity Complete' });
-        },
-        
-        onMissionSaved() {
-            this.updateHeader({ currentGoal: 'Mission Set' });
-        },
-        
-        onRoadmapSaved() {
-            this.updateHeader({ currentGoal: 'Roadmap Ready' });
-        }
-    },
-    
-    components: {
-        HeaderView,
-        IdentityView, 
-        MissionView,
-        RoadmapView
-    }
-};
-
-// Export all components
-export { HeaderView, IdentityView, MissionView, RoadmapView };ity View with Vision Guidance
+// Enhanced Identity View with Vision Guidance
 const IdentityView = {
     emits: ['save', 'update-header', 'completion-change'],
     data() {
@@ -396,19 +206,6 @@ const IdentityView = {
                 });
                 
                 if (response.ok) {
-                    // Emit HUD card event for progressive disclosure
-                    const event = new CustomEvent('identity-completed', {
-                        detail: {
-                            name: this.identity.name,
-                            place: this.identity.region,
-                            archetype: this.identity.archetype,
-                            mood: this.identity.mood,
-                            field: this.identity.field,
-                            title: this.identity.selfTitle
-                        }
-                    });
-                    document.dispatchEvent(event);
-                    
                     this.$emit('save', this.identity);
                     this.$emit('update-header', {
                         name: this.identity.name,
@@ -593,16 +390,6 @@ const MissionView = {
                 });
                 
                 if (response.ok) {
-                    // Emit HUD card event for progressive disclosure
-                    const event = new CustomEvent('mission-completed', {
-                        detail: {
-                            goal: this.mission.goal,
-                            timeline: this.mission.timeline,
-                            targetIncome: this.mission.goal.match(/€(\d+)/)?.[1] || '1000'
-                        }
-                    });
-                    document.dispatchEvent(event);
-                    
                     this.$emit('save', this.mission);
                     this.$emit('update-header', {
                         currentGoal: this.mission.goal,
@@ -790,103 +577,17 @@ const RoadmapView = {
     }
 };
 
-// Footer Navigation Component
-const FooterNav = {
-    props: {
-        activeView: {
-            type: String,
-            default: 'identity'
-        },
-        completionData: {
-            type: Object,
-            default: () => ({
-                identity: 0,
-                mission: 0,
-                roadmap: 0
-            })
-        },
-        arMode: {
-            type: Boolean,
-            default: false
-        }
-    },
-    emits: ['navigate'],
-    template: `
-        <div class="footer-nav" :class="{ 'ar-mode': arMode }">
-            <button 
-                @click="navigate('identity')"
-                :class="[
-                    'footer-nav-button',
-                    { 
-                        'active': activeView === 'identity',
-                        'disabled': false
-                    }
-                ]"
-            >
-                <div class="footer-nav-icon">🧠</div>
-                <div class="footer-nav-label">Identity</div>
-                <div class="footer-nav-dot" :class="{ 'completed': completionData.identity >= 75 }"></div>
-            </button>
-            
-            <button 
-                @click="navigate('mission')"
-                :class="[
-                    'footer-nav-button',
-                    { 
-                        'active': activeView === 'mission',
-                        'disabled': completionData.identity < 75
-                    }
-                ]"
-            >
-                <div class="footer-nav-icon">🎯</div>
-                <div class="footer-nav-label">Mission</div>
-                <div class="footer-nav-dot" :class="{ 'completed': completionData.mission >= 75 }"></div>
-            </button>
-            
-            <button 
-                @click="navigate('roadmap')"
-                :class="[
-                    'footer-nav-button',
-                    { 
-                        'active': activeView === 'roadmap',
-                        'disabled': completionData.mission < 75
-                    }
-                ]"
-            >
-                <div class="footer-nav-icon">🗺️</div>
-                <div class="footer-nav-label">Roadmap</div>
-                <div class="footer-nav-dot" :class="{ 'completed': completionData.roadmap >= 50 }"></div>
-            </button>
-        </div>
-    `,
-    methods: {
-        navigate(view) {
-            // Check if view is unlocked
-            if (view === 'mission' && this.completionData.identity < 75) {
-                return;
-            }
-            if (view === 'roadmap' && this.completionData.mission < 75) {
-                return;
-            }
-            
-            this.$emit('navigate', view);
-        }
-    }
-};
-
 // Main MR Application with Full CLIP Integration
 const MainApp = {
     components: {
         HeaderView,
         IdentityView, 
         MissionView,
-        RoadmapView,
-        HUDCard,
-        FooterNav
+        RoadmapView
     },
     data() {
         return {
-            currentView: 'identity',
+            activeTab: 'identity',
             userData: {
                 name: 'Indradeva',
                 currentGoal: 'Reach €1K',
@@ -907,57 +608,82 @@ const MainApp = {
             agent: null,
             camera: null,
             arOverlay: null,
-            tokenTracker: null,
             agentMessage: '',
-            showAgentBubble: false,
-            isArMode: false,
-            headerCollapsed: false,
-            pendingAgentResponses: new Map(),
-            agentResponseDebounce: null,
-            detectedObjects: [],
-            tamagotchiMessages: []
+            showAgentBubble: false
         };
     },
     template: `
-        <div class="triz-layout">
-            <!-- TRIZ Header Zone: 15vh -->
-            <div class="triz-header">
-                <HUDCard />
+        <div class="mr-app">
+            <!-- Agent Canvas -->
+            <canvas ref="agentCanvas" class="agent-canvas"></canvas>
+            
+            <!-- Agent Speech Bubble -->
+            <div v-if="showAgentBubble" class="agent-speech-bubble" :class="agentBubblePosition">
+                <p>{{ agentMessage }}</p>
+                <div class="bubble-arrow"></div>
             </div>
             
-            <!-- TRIZ Body Zone: 75vh -->
-            <div class="triz-body">
-                <!-- View Content -->
+            <!-- Header -->
+            <HeaderView 
+                :user-data="userData" 
+                :agent-completion="totalCompletion"
+                :vision-status="visionStatus"
+            />
+            
+            <!-- Main Content -->
+            <main class="mr-main">
                 <IdentityView 
-                    v-if="currentView === 'identity'" 
+                    v-if="activeTab === 'identity'"
                     @save="onIdentitySaved"
-                    @completion-change="onCompletionChange"
-                    @update-header="onHeaderUpdate"
+                    @update-header="updateHeader"
+                    @completion-change="updateCompletion"
                 />
-                
                 <MissionView 
-                    v-if="currentView === 'mission'" 
+                    v-if="activeTab === 'mission'"
                     @save="onMissionSaved"
-                    @completion-change="onCompletionChange"
-                    @update-header="onHeaderUpdate"
+                    @update-header="updateHeader"
+                    @completion-change="updateCompletion"
                 />
-                
                 <RoadmapView 
-                    v-if="currentView === 'roadmap'" 
-                    @save="onRoadmapSaved"
-                    @completion-change="onCompletionChange"
+                    v-if="activeTab === 'roadmap'"
+                    @completion-change="updateCompletion"
                 />
-            </div>
+            </main>
             
-            <!-- TRIZ Footer Zone: 10vh -->
-            <div class="triz-footer" :class="{ 'ar-mode': isArMode }">
-                <FooterNav 
-                    :activeView="currentView"
-                    :completionData="completionData"
-                    :arMode="isArMode"
-                    @navigate="onNavigate"
-                />
-            </div>
+            <!-- Enhanced Footer Navigation -->
+            <footer class="mr-footer">
+                <div class="tab-navigation">
+                    <button 
+                        @click="switchTab('identity')"
+                        :class="['nav-tab', { active: activeTab === 'identity' }]"
+                        :disabled="false"
+                    >
+                        <span class="tab-icon">🧬</span>
+                        <span class="tab-label">Identity</span>
+                        <div class="completion-dot" :class="{ filled: completionData.identity >= 80 }"></div>
+                    </button>
+                    
+                    <button 
+                        @click="switchTab('mission')"
+                        :class="['nav-tab', { active: activeTab === 'mission' }]"
+                        :disabled="completionData.identity < 80"
+                    >
+                        <span class="tab-icon">🎯</span>
+                        <span class="tab-label">Mission</span>
+                        <div class="completion-dot" :class="{ filled: completionData.mission >= 75 }"></div>
+                    </button>
+                    
+                    <button 
+                        @click="switchTab('roadmap')"
+                        :class="['nav-tab', { active: activeTab === 'roadmap' }]"
+                        :disabled="completionData.mission < 75"
+                    >
+                        <span class="tab-icon">🗺️</span>
+                        <span class="tab-label">Roadmap</span>
+                        <div class="completion-dot" :class="{ filled: completionData.roadmap >= 50 }"></div>
+                    </button>
+                </div>
+            </footer>
         </div>
     `,
     computed: {
@@ -969,68 +695,72 @@ const MainApp = {
         
         agentBubblePosition() {
             return {
-                'position-top': this.currentView === 'identity',
-                'position-center': this.currentView === 'mission',
-                'position-bottom': this.currentView === 'roadmap'
+                'position-top': this.activeTab === 'identity',
+                'position-center': this.activeTab === 'mission',
+                'position-bottom': this.activeTab === 'roadmap'
             };
         }
     },
     async mounted() {
-        this.setupVisionEventListeners();
+        this.initializeCamera();
+        this.initializeAgent();
+        this.initializeAROverlay();
         this.showAgentWelcome();
-        console.log('✓ TRIZ-optimized app initialized');
+        this.setupVisionEventListeners();
+        
+        window.addEventListener('resize', this.handleResize);
+    },
+    beforeUnmount() {
+        if (this.agent) {
+            this.agent.destroy();
+        }
+        if (this.camera) {
+            this.camera.destroy();
+        }
+        if (this.arOverlay) {
+            this.arOverlay.destroy();
+        }
+        window.removeEventListener('resize', this.handleResize);
     },
     methods: {
-        setupVisionEventListeners() {
-            // Mock vision for demonstration
-            setTimeout(() => {
-                this.visionStatus.active = true;
-                this.visionStatus.analyzing = false;
-            }, 1000);
+        initializeCamera() {
+            this.camera = new CameraIntegration();
         },
         
-        // Navigation Methods
-        onNavigate(view) {
-            this.currentView = view;
-            
-            // Enable AR mode only for roadmap view
-            if (view === 'roadmap') {
-                this.isArMode = true;
-            } else {
-                this.isArMode = false;
-            }
-        },
-        
-        // Component Event Handlers
-        onIdentitySaved(identityData) {
-            Object.assign(this.userData, identityData);
-        },
-        
-        onMissionSaved(missionData) {
-            Object.assign(this.userData, missionData);
-        },
-        
-        onRoadmapSaved(roadmapData) {
-            // Handle roadmap data
-            console.log('Roadmap saved:', roadmapData);
-        },
-        
-        onCompletionChange(type, percentage) {
-            this.completionData[type] = percentage;
+        initializeAgent() {
+            this.agent = new TamagotchiAgent(this.$refs.agentCanvas);
             this.updateAgentCompletion();
-            this.updateAgentMessage();
         },
         
-        onHeaderUpdate(headerData) {
-            Object.assign(this.userData, headerData);
+        initializeAROverlay() {
+            this.arOverlay = new AROverlay();
+            this.arOverlay.onActionSelected = this.handleActionSelected;
         },
         
-        toggleArMode() {
-            this.isArMode = !this.isArMode;
-        },
-        
-        onVisionDetected(objects) {
-            this.detectedObjects = objects;
+        setupVisionEventListeners() {
+            window.addEventListener('camera:ready', () => {
+                this.visionStatus.active = true;
+            });
+            
+            window.addEventListener('camera:stopped', () => {
+                this.visionStatus.active = false;
+            });
+            
+            window.addEventListener('vision:objects-detected', (event) => {
+                this.visionStatus.lastDetection = new Date();
+                this.visionStatus.analyzing = true;
+                
+                setTimeout(() => {
+                    this.visionStatus.analyzing = false;
+                }, 1000);
+                
+                // Update agent message based on detected objects
+                const objects = event.detail.objects || [];
+                if (objects.length > 0 && this.agent) {
+                    const message = this.agent.getObjectReactionMessage(objects[0].label);
+                    this.showAgentMessage(message);
+                }
+            });
         },
         
         handleActionSelected(action, object) {
@@ -1062,25 +792,24 @@ const MainApp = {
         },
         
         updateAgentCompletion() {
-            // TRIZ-optimized: lightweight completion tracking
-            const total = this.totalCompletion;
-            console.log(`Agent completion: ${total}%`);
+            if (this.agent) {
+                this.agent.updateCompletion(
+                    this.completionData.identity,
+                    this.completionData.mission,
+                    this.completionData.roadmap
+                );
+            }
         },
         
         updateAgentMessage() {
-            // TRIZ-optimized: simple message system
-            const messages = {
-                'identity': "I'm learning about you! 🌱",
-                'mission': "Your mission is taking shape 🎯",
-                'roadmap': "Let's build your path forward 🗺️"
-            };
-            
-            this.agentMessage = messages[this.currentView] || "How can I help you today?";
-            this.showAgentBubble = true;
-            
-            setTimeout(() => {
-                this.showAgentBubble = false;
-            }, 5000);
+            if (this.agent) {
+                this.agentMessage = this.agent.getPersonalityMessage();
+                this.showAgentBubble = true;
+                
+                setTimeout(() => {
+                    this.showAgentBubble = false;
+                }, 5000);
+            }
         },
         
         showAgentWelcome() {
@@ -1096,9 +825,14 @@ const MainApp = {
             if (tab === 'mission' && this.completionData.identity < 80) return;
             if (tab === 'roadmap' && this.completionData.mission < 75) return;
             
-            this.currentView = tab;
+            this.activeTab = tab;
             this.updateAgentMessage();
-            console.log(`Switched to ${tab} view`);
+            
+            if (this.agent) {
+                const mood = tab === 'identity' ? 'curious' :
+                            tab === 'mission' ? 'excited' : 'thinking';
+                this.agent.playEmotionalReaction(mood);
+            }
         },
         
         updateHeader(data) {
@@ -1121,67 +855,12 @@ const MainApp = {
             }
         },
         
-        toggleArMode() {
-            this.isArMode = !this.isArMode;
-            
-            if (this.isArMode) {
-                document.body.classList.add('ar-mode');
-                this.showAgentMessage("AR mode activated! Point your camera at objects for smart insights.");
-            } else {
-                document.body.classList.remove('ar-mode');
-                this.showAgentMessage("AR mode deactivated. Continuing with normal view.");
-            }
-        },
-        
-        onHeaderCollapse(collapsed) {
-            this.headerCollapsed = collapsed;
-            console.log(`Header collapsed: ${collapsed}`);
-        },
-        
-        // TRIZ-optimized: simplified agent response system
-        async getConsolidatedAgentResponse(userMessage, context) {
-            try {
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        message: userMessage,
-                        context: context
-                    })
-                });
-                
-                if (response.ok) {
-                    return await response.json();
-                } else {
-                    return { reply: "I'm having trouble processing that right now. Please try again." };
-                }
-            } catch (error) {
-                console.error('Agent response error:', error);
-                return { reply: "I encountered an error. Please try again." };
-            }
-        },
-        
         handleResize() {
-            console.log('Window resized - TRIZ optimized layout handles this automatically');
+            if (this.agent) {
+                this.agent.handleResize();
+            }
         }
     }
 };
 
-// Simple HUD Card component for TRIZ layout
-const HUDCard = {
-    template: `
-        <div class="hud-card">
-            <div class="hud-stage">TRIZ Optimized</div>
-            <div class="hud-progress">System Ready</div>
-        </div>
-    `
-};
-
-// Make components available globally for browser usage
-window.MainApp = MainApp;
-window.HeaderView = HeaderView;
-window.IdentityView = IdentityView;
-window.MissionView = MissionView;
-window.RoadmapView = RoadmapView;
-window.HUDCard = HUDCard;
-window.FooterNav = FooterNav;
+export { MainApp, HeaderView, IdentityView, MissionView, RoadmapView };

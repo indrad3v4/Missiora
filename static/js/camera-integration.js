@@ -1,6 +1,6 @@
 /**
- * Simplified Camera Integration for Fast Loading
- * Basic camera feed with lightweight vision analysis
+ * Enhanced Camera Integration with CLIP Vision Analysis
+ * Handles camera feed, object detection, and AR overlays
  */
 
 export class CameraIntegration {
@@ -144,10 +144,10 @@ export class CameraIntegration {
     }
     
     startObjectDetection() {
-        // Capture and analyze frame every 5 seconds for better performance
+        // Capture and analyze frame every 2 seconds
         this.analysisInterval = setInterval(() => {
             this.analyzeFrame();
-        }, 5000);
+        }, 2000);
     }
     
     stopObjectDetection() {

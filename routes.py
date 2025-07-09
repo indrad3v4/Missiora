@@ -100,7 +100,146 @@ def get_agent_mood(completion):
         return 'proud'
 
 
+    """Calculate identity completion percentage"""
+    if not user.identity_data:
+        return 0
+    
+    identity = json.loads(user.identity_data)
+    fields = ['name', 'archetype', 'mood', 'region', 'field', 'selfTitle']
+    completed = sum(1 for field in fields if identity.get(field, '').strip())
+    return (completed / len(fields)) * 100
+
+def calculate_mission_completion(user):
+    """Calculate mission completion percentage"""
+    if not user.mission_statement:
+        return 0
+    
+    # Check for mission components
+    fields = ['mission_statement', 'current_goal']
+    completed = sum(1 for field in fields if getattr(user, field, '').strip())
+    return (completed / len(fields)) * 100
+
+def calculate_roadmap_completion(user):
+    """Calculate roadmap completion percentage"""
+    milestones = Milestone.query.filter_by(active=True).all()
+    if not milestones:
+        return 0
+    
+    completed_milestones = sum(1 for m in milestones if m.completed)
+    return (completed_milestones / len(milestones)) * 100
+
+def get_agent_message(stage):
+    """Get personality message based on stage"""
+    messages = {
+        'seed': [
+            "I'm just beginning to understand you! 🌱",
+            "Let's plant the seeds of your mission! 🌱",
+            "Tell me more about who you are! 🌱"
+        ],
+        'sprout': [
+            "I'm growing! Your mission is becoming clearer 🌿",
+            "Keep feeding me insights! 🌿",
+            "I can feel your purpose taking shape! 🌿"
+        ],
+        'bloom': [
+            "Look how far we've come! 🌸",
+            "Your mission is flourishing! 🌸",
+            "We're making beautiful progress! 🌸"
+        ],
+        'master': [
+            "We've achieved mastery together! 🌟",
+            "Ready for the next challenge? 🌟",
+            "Your entrepreneurial spirit shines bright! 🌟"
+        ]
+    }
+    
+    stage_messages = messages.get(stage, messages['seed'])
+    import random
+    return random.choice(stage_messages)
+
+def get_agent_mood(completion):
+    """Determine agent mood based on completion"""
+    if completion < 25:
+        return 'curious'
+    elif completion < 50:
+        return 'excited'
+    elif completion < 80:
+        return 'happy'
+    else:
+        return 'proud'
+
+
 # Add these routes to routes.py for agent state management
+
+
+def calculate_identity_completion(user):
+    """Calculate identity completion percentage"""
+    if not user.identity_data:
+        return 0
+    
+    identity = json.loads(user.identity_data)
+    fields = ['name', 'archetype', 'mood', 'region', 'field', 'selfTitle']
+    completed = sum(1 for field in fields if identity.get(field, '').strip())
+    return (completed / len(fields)) * 100
+
+def calculate_mission_completion(user):
+    """Calculate mission completion percentage"""
+    if not user.mission_statement:
+        return 0
+    
+    # Check for mission components
+    fields = ['mission_statement', 'current_goal']
+    completed = sum(1 for field in fields if getattr(user, field, '').strip())
+    return (completed / len(fields)) * 100
+
+def calculate_roadmap_completion(user):
+    """Calculate roadmap completion percentage"""
+    milestones = Milestone.query.filter_by(active=True).all()
+    if not milestones:
+        return 0
+    
+    completed_milestones = sum(1 for m in milestones if m.completed)
+    return (completed_milestones / len(milestones)) * 100
+
+def get_agent_message(stage):
+    """Get personality message based on stage"""
+    messages = {
+        'seed': [
+            "I'm just beginning to understand you! 🌱",
+            "Let's plant the seeds of your mission! 🌱",
+            "Tell me more about who you are! 🌱"
+        ],
+        'sprout': [
+            "I'm growing! Your mission is becoming clearer 🌿",
+            "Keep feeding me insights! 🌿",
+            "I can feel your purpose taking shape! 🌿"
+        ],
+        'bloom': [
+            "Look how far we've come! 🌸",
+            "Your mission is flourishing! 🌸",
+            "We're making beautiful progress! 🌸"
+        ],
+        'master': [
+            "We've achieved mastery together! 🌟",
+            "Ready for the next challenge? 🌟",
+            "Your entrepreneurial spirit shines bright! 🌟"
+        ]
+    }
+    
+    stage_messages = messages.get(stage, messages['seed'])
+    import random
+    return random.choice(stage_messages)
+
+def get_agent_mood(completion):
+    """Determine agent mood based on completion"""
+    if completion < 25:
+        return 'curious'
+    elif completion < 50:
+        return 'excited'
+    elif completion < 80:
+        return 'happy'
+    else:
+        return 'proud'
 
 
 @app.route('/api/identity', methods=['GET', 'POST'])
@@ -761,54 +900,114 @@ def public_chat():
 
 @app.route('/api/vision/analyze', methods=['POST'])
 def analyze_vision():
-    """Fast vision analysis using existing FreeVisionEngine"""
+    """CLIP Vision analysis endpoint for object detection"""
     try:
         data = request.get_json()
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
+        if not data or 'image' not in data:
+            return jsonify({'error': 'No image data provided'}), 400
         
-        # Import our existing vision engine
-        from vision_engine import vision_engine
+        # Extract base64 image data
+        image_data = data['image']
+        if image_data.startswith('data:image'):
+            image_data = image_data.split(',')[1]
         
-        # Get image data and timestamp
-        image_data = data.get('image', '')
-        timestamp = data.get('timestamp', int(time.time() * 1000))
+        # Use OpenAI Vision API (GPT-4 Vision)
+        from openai import OpenAI
+        import base64
         
-        # Use the existing free vision analysis
-        analysis_result = vision_engine.analyze_image(image_data, timestamp)
+        client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
         
-        # Ensure proper structure for frontend
-        if 'objects' not in analysis_result:
-            analysis_result['objects'] = []
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": """Analyze this image and identify objects that would be relevant to a solopreneur in Krakow. Focus on:
+                            - Business-related items (laptops, business cards, documents, whiteboards)
+                            - People and networking opportunities
+                            - QR codes or text that could be scanned
+                            - Plants, books, or inspirational items
+                            - Workspace elements
+                            
+                            For each object, provide:
+                            1. Object label (simple, descriptive name)
+                            2. Confidence level (0-1)
+                            3. Approximate bounding box coordinates (x, y, width, height as percentages of image)
+                            4. Whether it's actionable (business card, QR code, etc.)
+                            
+                            Respond in JSON format like this:
+                            {
+                                "objects": [
+                                    {
+                                        "label": "laptop",
+                                        "confidence": 0.95,
+                                        "boundingBox": {"x": 100, "y": 150, "width": 200, "height": 150},
+                                        "actionable": true
+                                    }
+                                ],
+                                "scene_description": "Brief description of the overall scene"
+                            }"""
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_data}"
+                            }
+                        }
+                    ]
+                }
+            ],
+            max_tokens=500
+        )
         
-        if 'scene_description' not in analysis_result:
-            analysis_result['scene_description'] = 'Professional workspace detected'
+        # Parse the response
+        analysis_text = response.choices[0].message.content
         
-        # Add AR-specific metadata
-        analysis_result['ar_ready'] = True
-        analysis_result['overlay_instructions'] = "Point camera at business objects for insights"
+        # Try to extract JSON from the response
+        import json
+        import re
+        
+        # Look for JSON in the response
+        json_match = re.search(r'\{.*\}', analysis_text, re.DOTALL)
+        if json_match:
+            try:
+                analysis_result = json.loads(json_match.group())
+            except json.JSONDecodeError:
+                # Fallback: create a basic response
+                analysis_result = {
+                    "objects": [
+                        {
+                            "label": "detected object",
+                            "confidence": 0.8,
+                            "boundingBox": {"x": 50, "y": 50, "width": 200, "height": 200},
+                            "actionable": False
+                        }
+                    ],
+                    "scene_description": "Scene analysis available"
+                }
+        else:
+            # Fallback response
+            analysis_result = {
+                "objects": [],
+                "scene_description": "Unable to parse vision analysis"
+            }
+        
+        # Add timestamp
+        analysis_result['timestamp'] = data.get('timestamp', int(time.time() * 1000))
+        analysis_result['processing_time'] = int(time.time() * 1000) - analysis_result['timestamp']
         
         return jsonify(analysis_result)
         
     except Exception as e:
-        app.logger.error(f"Vision analysis error: {e}")
-        
-        # Simple fallback without dependencies
+        print(f"Vision analysis error: {e}")
         return jsonify({
-            'objects': [
-                {
-                    'label': 'workspace',
-                    'confidence': 0.8,
-                    'boundingBox': {'x': 50, 'y': 50, 'width': 200, 'height': 150},
-                    'actionable': True
-                }
-            ],
-            'scene_description': 'Workspace environment ready for productivity',
-            'timestamp': int(time.time() * 1000),
-            'processing_time': 25,
-            'status': 'success',
-            'ar_ready': True
-        })
+            'error': 'Vision analysis failed',
+            'objects': [],
+            'scene_description': 'Analysis unavailable'
+        }), 500
 
 @app.route('/api/vision/action', methods=['POST'])
 def execute_vision_action():

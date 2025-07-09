@@ -42,7 +42,7 @@
     <script type="importmap">
     {
       "imports": {
-        "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.prod.js"
+        "vue": "https://unpkg.com/vue@3/dist/vue.esm-browser.js"
       }
     }
     </script>
@@ -50,16 +50,7 @@
         import { createApp } from 'vue'
         import { MainApp } from '/static/js/vue-components.js'
         
-        // Initialize app with error handling
-        try {
-            const app = createApp(MainApp);
-            app.mount('#app');
-            console.log('✓ Missiora Vision loaded successfully');
-        } catch (error) {
-            console.error('App mount failed:', error);
-            document.querySelector('.loading').textContent = 'Loading failed. Refreshing...';
-            setTimeout(() => window.location.reload(), 2000);
-        }
+        createApp(MainApp).mount('#app')
     </script>
 </body>
 </html>
