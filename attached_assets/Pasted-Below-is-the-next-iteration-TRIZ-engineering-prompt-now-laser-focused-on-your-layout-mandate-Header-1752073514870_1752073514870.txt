@@ -1,0 +1,72 @@
+Below is the next-iteration TRIZ engineering prompt—now laser-focused on your layout mandate: Header 15 % (5 data points only) · Body 75 % · Footer 10 % (Identity / Mission / Roadmap nav), with the Roadmap view handing users into the core MR mechanic.
+
+⸻
+
+✅ ULTRA-VIBE UNIVERSAL TRIZ PROMPT ENGINEERING SCRIPT
+
+Act as my TRIZ Structure Prompt Engineer for **“Missiora three-zone game-HUD layout & MR hand-off”**.
+
+Your goal is to design a precise, iterative, resource-aware plan that systematically unlocks hidden potential and resolves contradictions for this layout overhaul, while following best practices from the Replit Vibe Coding Guide.
+
+ — 
+
+## 1) SYSTEM — Define the system boundary.  
+• **Inside:**  
+  – Header (15 vh) → `HUDCard.vue` (fields: name, place, goal, income, tokens).  
+  – Body (75 vh)   → `IdentityView.vue`, `MissionView.vue`, `RoadmapView.vue`, plus AR canvas when in Roadmap.  
+  – Footer (10 vh) → `FooterNav.vue` (3 buttons: Identity, Mission, Roadmap).  
+• Function delivered: keep vital game stats always visible, maximise workspace for forms / MR, and give single-tap nav between steps.  
+• ✅ *Procedural Tip:* Zones rendered by `MainLayout.vue`; route changes swap Body only.  
+• ✅ *Master Context Tip:* Affects `TokenTracker`, session balance logic, AR overlay mount in Roadmap route.
+
+## 2) ELEMENTS — Decompose.  
+| TRIZ role | Element (file) | Notes / libs |
+|-----------|----------------|--------------|
+| ИЭ | User taps / scrolls | Touch events trigger nav + form saves |
+| Дв | Vue-router guard | Shows/hides AR overlay only in Roadmap |
+| Tr | Flexbox / CSS grid | Splits 15-75-10 layout; uses Tailwind classes `h-[15vh]`, `h-[75vh]`, `h-[10vh]` |
+| РО | `HUDCard.vue` | Renders 5 fields; listens to Pinia `profileStore` & `walletStore` |
+| УУ | `LayoutController.ts` | Ensures resize calc, media-query fallbacks |
+| NadSystem | Replit OAuth, GPT-4o, FreeVisionEngine | External deps unchanged |
+| ✅ *Frameworks Tip:* Tailwind v3, PrimeVue Card, Headless-UI tab group for footer nav.
+
+## 3) FUNCTION — Instrument → Object → Result.  
+• `TokenTracker.balance` → header token badge → live decrement; passive bug: badge overflows small devices.  
+• `RoadmapView` mount → emits `enter-MR` → `AROverlay.js` attaches; harmful loop if footer overlays camera.  
+• ✅ *Debug Tip:* Attach DevTools screenshot showing correct vh splits on iPhone 11 simulator.
+
+## 4) EVENT — Cause-effect loops.  
+• **E1:** Route `Identity` → user fills name/place → `profileStore` updates → header re-renders (goal/income still blanks).  
+• **E2:** Route `Roadmap` → AI generates milestones → header.goal set to next milestone; MR overlay opens.  
+• **Test Tip:** Cypress viewport 375×812, assert header = 15 vh ±1 vh; body fills rest; footer fixed 10 vh.
+
+## 5) RESOURCE — Reveal hidden / overlooked.  
+• CSS `env(safe-area-inset-bottom)` to respect iOS home-bar.  
+• Use IntersectionObserver to lazy-load AR assets only when Body in Roadmap.  
+• Mirror token balance to LocalStorage for offline persistence.
+
+## 6) IDEAL FINAL RESULT (ИКР).  
+• Header shows 5 stats only, never scrolls; body fills remaining space; footer always visible.  
+• Switching to Roadmap seamlessly launches MR without shifting layout.  
+• Verified by Jest snapshot & Lighthouse mobile score > 90 for CLS.
+
+## 7) CONTRADICTION.  
+Need persistent footer nav **vs** need max camera view in MR.  
+• **Experiment:** Auto-hide footer after 3 s in MR, show on edge-swipe; measure user error rate.
+
+## 8) Веполь (Su-Field).  
+Sub₁: User input / session state  
+Field: Layout re-render events  
+Sub₂: Visual zones (header/body/footer)  
+Helpful field: Green “balanced-layout” ensuring stats visible; Harmful: Red “occlusion” when zones exceed vh budget.  
+✅ *Checkpoint Tip:* Unit test fails if any zone height deviates > 2 vh from spec.
+
+ — 
+
+### 🪜 Driver-but-Barrier Insight  
+Driver but barrier for Missiora three-zone HUD: **constant visibility of mission stats drives engagement**, yet if header/footer steal > 25 vh **they barrier** the MR view and make forms feel cramped.
+
+### ✅ Next Checkpoint / Debug Step  
+Create `MainLayout.spec.ts`: mount with mocked stores, assert `document.querySelector('#header').offsetHeight` equals `Math.round(window.innerHeight*0.15)`. Snapshot and run in iPhone 11 & Pixel 5 viewports.
+
+Paste this prompt into your Vibe-Coding loop, run, and iterate—let me know what needs refining next!

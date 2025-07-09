@@ -1,7 +1,162 @@
 /**
- * Enhanced Mixed Reality Styles with CLIP Vision Integration
+ * TRIZ-Structured Three-Zone Layout System
  * Mobile-first 1080×1920px optimized design with AR overlays
+ * Layout: Header 15vh | Body 75vh | Footer 10vh
  */
+
+/* Global Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* TRIZ Three-Zone Layout: 15-75-10 proportions */
+.triz-layout {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    width: 100vw;
+}
+
+.triz-header {
+    height: 15vh;
+    min-height: 15vh;
+    max-height: 15vh;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 1rem;
+    position: relative;
+    z-index: 20;
+}
+
+.triz-body {
+    height: 75vh;
+    min-height: 75vh;
+    max-height: 75vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    position: relative;
+    flex: 1;
+}
+
+.triz-footer {
+    height: 10vh;
+    min-height: 10vh;
+    max-height: 10vh;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 20;
+}
+
+/* iOS Safe Area Support */
+@supports (padding: env(safe-area-inset-bottom)) {
+    .triz-footer {
+        padding-bottom: env(safe-area-inset-bottom);
+        height: calc(10vh + env(safe-area-inset-bottom));
+    }
+    
+    .triz-body {
+        height: calc(75vh - env(safe-area-inset-bottom));
+    }
+}
+
+/* Footer Navigation - TRIZ 3-button system */
+.footer-nav {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+    padding: 0 2rem;
+}
+
+.footer-nav-button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    min-width: 80px;
+    position: relative;
+}
+
+.footer-nav-button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    transform: translateY(-2px);
+}
+
+.footer-nav-button.active {
+    background: rgba(255, 255, 255, 0.3);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.footer-nav-button.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.footer-nav-icon {
+    font-size: 1.2rem;
+    margin-bottom: 0.25rem;
+}
+
+.footer-nav-label {
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.footer-nav-dot {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transition: all 0.3s ease;
+}
+
+.footer-nav-dot.completed {
+    background: #22c55e;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+}
+
+/* AR Mode Footer Auto-Hide */
+.triz-footer.ar-mode {
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+}
+
+.triz-footer.ar-mode.show-on-touch {
+    transform: translateY(0);
+}
 
 /* Base MR App Structure */
 .mr-app {
@@ -26,20 +181,18 @@
     box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
 }
 
-/* TRIZ-Structured HUD Card System */
+/* TRIZ-Structured HUD Card System - Header Integration */
 .hud-card {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    width: 320px;
+    width: 100%;
+    max-width: 400px;
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(20px);
-    border-radius: 16px;
+    border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-    z-index: 200;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     transition: all 0.3s ease;
     overflow: hidden;
+    margin: 0 auto;
 }
 
 .hud-card.hidden {

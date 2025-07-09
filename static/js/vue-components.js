@@ -645,6 +645,90 @@ const RoadmapView = {
     }
 };
 
+// Footer Navigation Component
+const FooterNav = {
+    props: {
+        activeView: {
+            type: String,
+            default: 'identity'
+        },
+        completionData: {
+            type: Object,
+            default: () => ({
+                identity: 0,
+                mission: 0,
+                roadmap: 0
+            })
+        },
+        arMode: {
+            type: Boolean,
+            default: false
+        }
+    },
+    emits: ['navigate'],
+    template: `
+        <div class="footer-nav" :class="{ 'ar-mode': arMode }">
+            <button 
+                @click="navigate('identity')"
+                :class="[
+                    'footer-nav-button',
+                    { 
+                        'active': activeView === 'identity',
+                        'disabled': false
+                    }
+                ]"
+            >
+                <div class="footer-nav-icon">🧠</div>
+                <div class="footer-nav-label">Identity</div>
+                <div class="footer-nav-dot" :class="{ 'completed': completionData.identity >= 75 }"></div>
+            </button>
+            
+            <button 
+                @click="navigate('mission')"
+                :class="[
+                    'footer-nav-button',
+                    { 
+                        'active': activeView === 'mission',
+                        'disabled': completionData.identity < 75
+                    }
+                ]"
+            >
+                <div class="footer-nav-icon">🎯</div>
+                <div class="footer-nav-label">Mission</div>
+                <div class="footer-nav-dot" :class="{ 'completed': completionData.mission >= 75 }"></div>
+            </button>
+            
+            <button 
+                @click="navigate('roadmap')"
+                :class="[
+                    'footer-nav-button',
+                    { 
+                        'active': activeView === 'roadmap',
+                        'disabled': completionData.mission < 75
+                    }
+                ]"
+            >
+                <div class="footer-nav-icon">🗺️</div>
+                <div class="footer-nav-label">Roadmap</div>
+                <div class="footer-nav-dot" :class="{ 'completed': completionData.roadmap >= 50 }"></div>
+            </button>
+        </div>
+    `,
+    methods: {
+        navigate(view) {
+            // Check if view is unlocked
+            if (view === 'mission' && this.completionData.identity < 75) {
+                return;
+            }
+            if (view === 'roadmap' && this.completionData.mission < 75) {
+                return;
+            }
+            
+            this.$emit('navigate', view);
+        }
+    }
+};
+
 // Main MR Application with Full CLIP Integration
 const MainApp = {
     components: {
@@ -652,11 +736,12 @@ const MainApp = {
         IdentityView, 
         MissionView,
         RoadmapView,
-        HUDCard
+        HUDCard,
+        FooterNav
     },
     data() {
         return {
-            activeTab: 'identity',
+            currentView: 'identity',
             userData: {
                 name: 'Indradeva',
                 currentGoal: 'Reach €1K',
@@ -683,22 +768,76 @@ const MainApp = {
             isArMode: false,
             headerCollapsed: false,
             pendingAgentResponses: new Map(),
-            agentResponseDebounce: null
+            agentResponseDebounce: null,
+            detectedObjects: [],
+            tamagotchiMessages: []
         };
     },
     template: `
-        <div class="mr-app">
-            <!-- Agent Canvas -->
-            <canvas ref="agentCanvas" class="agent-canvas"></canvas>
-            
-            <!-- TRIZ-Structured HUD Card System -->
-            <HUDCard />
-            
-            <!-- Agent Speech Bubble -->
-            <div v-if="showAgentBubble" class="agent-speech-bubble" :class="agentBubblePosition">
-                <p>{{ agentMessage }}</p>
-                <div class="bubble-arrow"></div>
+        <div class="triz-layout">
+            <!-- TRIZ Header Zone: 15vh -->
+            <div class="triz-header">
+                <HUDCard />
             </div>
+            
+            <!-- TRIZ Body Zone: 75vh -->
+            <div class="triz-body">
+                <!-- Agent Canvas -->
+                <canvas ref="agentCanvas" class="agent-canvas"></canvas>
+                
+                <!-- Agent Speech Bubble -->
+                <div v-if="showAgentBubble" class="agent-speech-bubble" :class="agentBubblePosition">
+                    <p>{{ agentMessage }}</p>
+                    <div class="bubble-arrow"></div>
+                </div>
+                
+                <!-- View Content -->
+                <IdentityView 
+                    v-if="currentView === 'identity'" 
+                    @save="onIdentitySaved"
+                    @completion-change="onCompletionChange"
+                    @update-header="onHeaderUpdate"
+                />
+                
+                <MissionView 
+                    v-if="currentView === 'mission'" 
+                    @save="onMissionSaved"
+                    @completion-change="onCompletionChange"
+                    @update-header="onHeaderUpdate"
+                />
+                
+                <RoadmapView 
+                    v-if="currentView === 'roadmap'" 
+                    @save="onRoadmapSaved"
+                    @completion-change="onCompletionChange"
+                />
+                
+                <!-- AR Camera View (only in roadmap) -->
+                <CameraView 
+                    v-if="currentView === 'roadmap' && isArMode"
+                    @toggle-ar="toggleArMode"
+                    @vision-detected="onVisionDetected"
+                />
+                
+                <!-- Tamagotchi Agent (only in roadmap AR mode) -->
+                <TamagotchiView 
+                    v-if="currentView === 'roadmap' && isArMode"
+                    :detectedObjects="detectedObjects"
+                    :messages="tamagotchiMessages"
+                />
+            </div>
+            
+            <!-- TRIZ Footer Zone: 10vh -->
+            <div class="triz-footer" :class="{ 'ar-mode': isArMode }">
+                <FooterNav 
+                    :activeView="currentView"
+                    :completionData="completionData"
+                    :arMode="isArMode"
+                    @navigate="onNavigate"
+                />
+            </div>
+        </div>
+    `,
             
             <!-- Header -->
             <HeaderView 
@@ -775,9 +914,9 @@ const MainApp = {
         
         agentBubblePosition() {
             return {
-                'position-top': this.activeTab === 'identity',
-                'position-center': this.activeTab === 'mission',
-                'position-bottom': this.activeTab === 'roadmap'
+                'position-top': this.currentView === 'identity',
+                'position-center': this.currentView === 'mission',
+                'position-bottom': this.currentView === 'roadmap'
             };
         }
     },
@@ -838,13 +977,60 @@ const MainApp = {
                     this.visionStatus.analyzing = false;
                 }, 1000);
                 
-                // Update agent message based on detected objects
+                // Update detected objects for tamagotchi
                 const objects = event.detail.objects || [];
+                this.detectedObjects = objects;
+                
+                // Update agent message based on detected objects
                 if (objects.length > 0 && this.agent) {
                     const message = this.agent.getObjectReactionMessage(objects[0].label);
                     this.showAgentMessage(message);
                 }
             });
+        },
+        
+        // Navigation Methods
+        onNavigate(view) {
+            this.currentView = view;
+            
+            // Enable AR mode only for roadmap view
+            if (view === 'roadmap') {
+                this.isArMode = true;
+            } else {
+                this.isArMode = false;
+            }
+        },
+        
+        // Component Event Handlers
+        onIdentitySaved(identityData) {
+            Object.assign(this.userData, identityData);
+        },
+        
+        onMissionSaved(missionData) {
+            Object.assign(this.userData, missionData);
+        },
+        
+        onRoadmapSaved(roadmapData) {
+            // Handle roadmap data
+            console.log('Roadmap saved:', roadmapData);
+        },
+        
+        onCompletionChange(type, percentage) {
+            this.completionData[type] = percentage;
+            this.updateAgentCompletion();
+            this.updateAgentMessage();
+        },
+        
+        onHeaderUpdate(headerData) {
+            Object.assign(this.userData, headerData);
+        },
+        
+        toggleArMode() {
+            this.isArMode = !this.isArMode;
+        },
+        
+        onVisionDetected(objects) {
+            this.detectedObjects = objects;
         },
         
         handleActionSelected(action, object) {
